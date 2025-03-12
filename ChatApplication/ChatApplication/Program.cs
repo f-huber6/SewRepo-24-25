@@ -1,9 +1,16 @@
+using System.Reflection;
 using ChatApplication.Components;
 using ChatApplication.Hub;
+using ChatApplication.Services;
+using Database.Context;
+using Database.Entities;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
+var assembly = Assembly.GetExecutingAssembly();
 var builder = WebApplication.CreateBuilder(args);
+var conf = builder.Configuration;
 
-// Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
@@ -19,6 +26,15 @@ builder.Services.AddCors(options =>
             .AllowAnyOrigin();
     });
 });
+builder.Services.AddDbContext<ApplicationContext>(options =>
+{
+    options.UseSqlite(conf.GetConnectionString("DefaultConnection"),
+        sqlOptions =>
+        {
+            sqlOptions.MigrationsAssembly(assembly.FullName);
+        });
+});
+
 
 var app = builder.Build();
 app.UseCors("CorsPolicy");
@@ -35,6 +51,22 @@ app.UseHttpsRedirection();
 
 app.UseStaticFiles();
 app.UseAntiforgery();
+
+app.MapGet("api/messages", async ([FromBody] Message message, MessageService messageService ) =>
+{
+    await messageService.GetAllMessagesAsync();
+});
+
+app.MapPost("api/messages", async ([FromBody] Message message, MessageService service) =>
+{
+    if (message == null || string.IsNullOrWhiteSpace(message.Content))
+    {
+        return Results.BadRequest("Message content cannot be empty");
+    }
+
+    await service.AddMessageAsync(message);
+    return Results.Ok();
+});
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

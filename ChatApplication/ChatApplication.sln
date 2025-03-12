@@ -4,6 +4,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChatApplication", "ChatAppl
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client", "Client\Client.csproj", "{58B9BC87-0A88-410C-9DED-9E12F72C538E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Database", "Database\Database.csproj", "{23764050-D64E-44A3-9762-3D034B39A47A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{58B9BC87-0A88-410C-9DED-9E12F72C538E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{58B9BC87-0A88-410C-9DED-9E12F72C538E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{58B9BC87-0A88-410C-9DED-9E12F72C538E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{23764050-D64E-44A3-9762-3D034B39A47A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{23764050-D64E-44A3-9762-3D034B39A47A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{23764050-D64E-44A3-9762-3D034B39A47A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{23764050-D64E-44A3-9762-3D034B39A47A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
