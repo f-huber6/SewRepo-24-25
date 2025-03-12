@@ -1,0 +1,275 @@
+﻿@page "/"
+@using Microsoft.AspNetCore.SignalR.Client
+
+<style>
+    .chat-container {
+        max-width: 900px;
+        margin: auto;
+        display: flex;
+        gap: 20px;
+        padding: 20px;
+    }
+
+    .room-list {
+        width: 250px;
+    }
+
+    .chat-area {
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .message-box {
+        flex-grow: 1;
+        height: 400px;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 5px;
+    }
+
+    .chat-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-bottom: 10px;
+    }
+
+    .message-input {
+        display: flex;
+        gap: 10px;
+    }
+
+    .message-input input {
+        flex-grow: 1;
+    }
+
+    .room-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .delete-btn{
+        background: none;
+        border: none;
+        font-size: 1.2rem;
+        cursor: pointer;
+    }
+</style>
+
+<div class="container chat-container">
+    @if (!_isConnected)
+    {
+        <div class="text-center">
+            <h3>Welcome to your personally chat-application! Start your new chat now!</h3>
+            <div class="input-group mb-3 w-75 mx-auto">
+                <input class="form-control" @bind="_nickname" placeholder="Enter Nickname" />
+                <button class="btn btn-primary" @onclick="RegisterUser">Login</button>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="room-list">
+            <h4>Chat Rooms</h4>
+            <ul class="list-group">
+                @foreach (var room in _chatRooms)
+                {
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <button class="btn btn-outline-primary flex-grow-1 text-start" @onclick="() => JoinChatRoom(room)">
+                        @room
+                    </button>
+                    @if (room != "General")
+                    {
+                    <button class="delete-btn ms-2" @onclick="() => DeleteChatRoom(room)">
+                        🗑️
+                    </button>
+                    }
+                </li>
+                }
+            </ul>
+
+            <div class="input-group my-3">
+                <input class="form-control" @bind="_newRoomName" placeholder="New Room Name" />
+                <button class="btn btn-success" @onclick="CreateChatRoom">Create</button>
+            </div>
+        </div>
+        
+        
+        <div class="chat-area">
+            <div class="chat-actions">
+                <button class="btn btn-primary btn-sm" @onclick="LeaveRoom">Leave Room</button>
+                <button class="btn btn-primary btn-sm" @onclick="Logout">Log out</button>
+            </div>
+
+            @if (_currentRoom != null)
+            {
+                <h4>Chatroom: @_currentRoom</h4>
+
+                <div class="message-box">
+                    <ul class="list-unstyled">
+                        @foreach (var msg in _messages)
+                        {
+                            <li>@msg</li>
+                        }
+                    </ul>
+                </div>
+
+                <div class="message-input mt-3">
+                    <input class="form-control" @bind="_message" placeholder="Type a message..." />
+                    <button class="btn btn-primary" @onclick="SendMessage">Send</button>
+                </div>
+            }
+            else
+            {
+                <p class="text-muted">Select a chat room to start chatting</p>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private HubConnection? _hubConnection;
+    private string _nickname = "";
+    private string _message = "";
+    private string _newRoomName = "";
+    private string? _currentRoom = null;
+    private List<string> _messages = new();
+    private List<string> _chatRooms = new();
+    private bool _isConnected = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl("http://localhost:5205/chat")
+            .WithAutomaticReconnect()
+            .Build();
+        
+        _hubConnection.On<string, List<string>>("RegistrationSucceeded", (nickname, rooms) =>
+        {
+            _nickname = nickname;
+            _chatRooms = rooms;
+            _isConnected = true;
+            StateHasChanged();
+        });
+
+        _hubConnection.On<string>("ChatRoomCreated", room =>
+        {
+            if (!_chatRooms.Contains(room))
+            {
+                _chatRooms.Add(room);
+                StateHasChanged();
+            }
+        });
+
+        _hubConnection.On<string>("ChatRoomDeleted", room =>
+        {
+            _chatRooms.Remove(room);
+            if (_currentRoom == room)
+            {
+                _currentRoom = null;
+                _messages.Clear();
+            }
+            StateHasChanged();
+        });
+
+        _hubConnection.On<string, string>("ReceiveMessage", (user, msg) =>
+        {
+            _messages.Add($"{user}: {msg}");
+            StateHasChanged();
+        });
+
+        _hubConnection.On<string>("UserJoined", user =>
+        {
+            _messages.Add($"{user} has joined the chat.");
+            StateHasChanged();
+        });
+
+        _hubConnection.On<string>("UserLeft", user =>
+        {
+            _messages.Add($"{user} has left the chat.");
+            StateHasChanged();
+        });
+
+        _hubConnection.On<string>("UserLoggedOut", (nickname) =>
+        {
+            _isConnected = false;
+            _nickname = "";
+            _currentRoom = null;
+            _messages.Clear();
+            _chatRooms.Clear();
+            StateHasChanged();
+        });
+
+        _hubConnection.On<string>("ChatRoomDeleted", room =>
+        {
+            _chatRooms.Remove(room);
+            if (_currentRoom == room)
+            {
+                _currentRoom = null;
+                _messages.Clear();
+            }
+            StateHasChanged();
+        });
+
+        await _hubConnection.StartAsync();
+    }
+
+    private async Task RegisterUser()
+    {
+        await _hubConnection!.InvokeAsync("RegisterUser", _nickname);
+    }
+
+    private async Task CreateChatRoom()
+    {
+        if (!string.IsNullOrWhiteSpace(_newRoomName))
+        {
+            await _hubConnection!.InvokeAsync("CreateChatRoom", _newRoomName);
+            _newRoomName = "";
+        }
+    }
+
+    private async Task JoinChatRoom(string room)
+    {
+        if (_currentRoom != null)
+        {
+            await _hubConnection!.InvokeAsync("LeaveChatRoom", _currentRoom);
+        }
+
+        _currentRoom = room;
+        _messages.Clear();
+        await _hubConnection!.InvokeAsync("JoinChatRoom", room);
+    }
+
+    private async Task DeleteChatRoom(string room)
+    {
+        await _hubConnection!.InvokeAsync("DeleteChatRoom", room);
+    }
+
+    private async Task LeaveRoom()
+    {
+        if (_currentRoom != null)
+        {
+            await _hubConnection!.InvokeAsync("LeaveChatRoom", _currentRoom);
+            _currentRoom = null;
+            _messages.Clear();
+        }
+    }
+
+    private async Task SendMessage()
+    {
+        if (!string.IsNullOrWhiteSpace(_message) && _currentRoom != null)
+        {
+            await _hubConnection!.InvokeAsync("SendMessage", _currentRoom, _message);
+            _message = "";
+        }
+    }
+
+    private async Task Logout()
+    {
+        await _hubConnection!.InvokeAsync("LogoutUser");
+    }
+}
