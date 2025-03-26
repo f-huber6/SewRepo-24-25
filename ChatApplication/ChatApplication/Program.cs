@@ -1,11 +1,14 @@
 using System.Reflection;
+using System.Text;
 using ChatApplication.Components;
 using ChatApplication.Hub;
-using ChatApplication.Services;
 using Database.Context;
 using Database.Entities;
-using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.VisualBasic.CompilerServices;
 
 var assembly = Assembly.GetExecutingAssembly();
 var builder = WebApplication.CreateBuilder(args);
@@ -15,6 +18,8 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services.AddRazorPages();
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSignalR();
 builder.Services.AddServerSideBlazor();
 builder.Services.AddCors(options =>
@@ -35,38 +40,50 @@ builder.Services.AddDbContext<ApplicationContext>(options =>
         });
 });
 
+builder.Services.AddIdentity<User, IdentityRole>()
+    .AddEntityFrameworkStores<ApplicationContext>()
+    .AddDefaultTokenProviders();
+
+var key = Encoding.UTF8.GetBytes(conf["Jwt:Key"] ?? throw new Exception("JWT Key not found"));
+var issuer = conf["Jwt:Issuer"] ?? throw new Exception("JWT Issuer not found");
+var audience = conf["Jwt:Audience"] ?? throw new Exception("JWT Audience not found");
+
+builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.RequireHttpsMetadata = false;
+        options.SaveToken = true;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(key),
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidIssuer = issuer,
+            ValidAudience = audience
+        };
+    });
 
 var app = builder.Build();
 app.UseCors("CorsPolicy");
 
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
-
+//Brauch i ned wü i ned app.UseHttpsRedirection();
+app.UseAuthentication();
+app.MapControllers();
+app.UseAuthorization();
 app.UseStaticFiles();
 app.UseAntiforgery();
-
-app.MapGet("api/messages", async ([FromBody] Message message, MessageService messageService ) =>
-{
-    await messageService.GetAllMessagesAsync();
-});
-
-app.MapPost("api/messages", async ([FromBody] Message message, MessageService service) =>
-{
-    if (message == null || string.IsNullOrWhiteSpace(message.Content))
-    {
-        return Results.BadRequest("Message content cannot be empty");
-    }
-
-    await service.AddMessageAsync(message);
-    return Results.Ok();
-});
+app.Run();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

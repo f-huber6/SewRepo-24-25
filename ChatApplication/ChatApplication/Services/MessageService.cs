@@ -3,15 +3,19 @@ using Database.Entities;
 
 namespace ChatApplication.Services;
 
-public class MessageService(MessageRepository repository)
+/*
+public class MessageService(ARepository repository)
 {
-    private readonly MessageRepository _repository = repository;
+    private readonly ARepository _repository = repository;
     
     public async Task<List<Message>> GetAllMessagesAsync() => await _repository.GetAllMessagesAsync();
 
+    public async Task<Message?> GetMessageByIdAsync(int id) => await _repository.GetMessageByIdAsync(id);
     public async Task AddMessageAsync(Message message)
     {
         message.Timestamp = DateTime.Now;
         await _repository.AddMessageAsync(message);
     }
 }
+
+*/

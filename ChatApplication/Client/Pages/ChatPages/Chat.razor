@@ -1,16 +1,17 @@
-﻿@page "/"
+﻿@page "/chat"
+@inject AuthStateProvider AuthStateProvider
+@using Client.Services
 @using Microsoft.AspNetCore.SignalR.Client
 
-<style>
-</style>
 
 <div class="container chat-container">
     @if (!_isConnected)
     {
         <div class="text-center">
-            <h3>Welcome to your personally chat-application! Start your new chat now!</h3>
+            <h3>Start a chat</h3>
             <div class="input-group mb-3 w-75 mx-auto">
                 <input class="form-control" @bind="_nickname" placeholder="Enter Nickname" />
+                <input class="form-control" @bind="_password" placeholder="Enter password" />
                 <button class="btn btn-primary" @onclick="RegisterUser">Login</button>
             </div>
         </div>
@@ -53,6 +54,16 @@
             {
                 <h4>Chatroom: @_currentRoom</h4>
 
+                <div class="user-list">
+                    <h5>Users in this room:</h5>
+                    <ul class="list-group">
+                        @foreach (var user in _usersInRoom)
+                        {
+                            <li class="list-group-item">@user</li>
+                        }
+                    </ul>
+                </div>
+                
                 <div class="message-box">
                     <ul class="list-unstyled">
                         @foreach (var msg in _messages)
@@ -78,11 +89,13 @@
 @code {
     private HubConnection? _hubConnection;
     private string _nickname = "";
+    private string _password = "";
     private string _message = "";
     private string _newRoomName = "";
     private string? _currentRoom = null;
     private List<string> _messages = new();
     private List<string> _chatRooms = new();
+    private List<string> _usersInRoom = new();
     private bool _isConnected = false;
 
     protected override async Task OnInitializedAsync()
@@ -107,6 +120,12 @@
                 _chatRooms.Add(room);
                 StateHasChanged();
             }
+        });
+
+        _hubConnection.On<List<string>>("UpdateUserList", users =>
+        {
+            _usersInRoom = users;
+            StateHasChanged();
         });
 
         _hubConnection.On<string>("ChatRoomDeleted", room =>
@@ -160,6 +179,14 @@
         });
 
         await _hubConnection.StartAsync();
+
+        var username = await AuthStateProvider.GetUserName();
+
+        if (!string.IsNullOrEmpty(username))
+        {
+            _nickname = username;
+            await _hubConnection.InvokeAsync("RegisterUser", username);
+        }
     }
 
     private async Task RegisterUser()

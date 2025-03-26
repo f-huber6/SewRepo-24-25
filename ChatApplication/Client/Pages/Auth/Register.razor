@@ -1,0 +1,74 @@
+﻿@page "/auth/register"
+@inject NavigationManager Navigation
+@inject HttpClient Http
+@using System.ComponentModel.DataAnnotations
+
+<h3>Register</h3>
+@if (_errorMessage != null)
+{
+    <p class="text-danger">@_errorMessage</p>
+}
+
+<EditForm Model="_registerModel" OnValidSubmit="HandleRegister">
+    <DataAnnotationsValidator />
+
+    <div>
+        <label>Username:</label>
+        <InputText @bind-Value="_registerModel.UserName" />
+        <ValidationMessage For="@(() => _registerModel.UserName)" />
+    </div>
+
+    <div>
+        <label>Email:</label>
+        <InputText @bind-Value="_registerModel.Email" />
+        <ValidationMessage For="@(() => _registerModel.Email)" />
+    </div>
+
+    <div>
+        <label>Phone Number:</label>
+        <InputText @bind-Value="_registerModel.PhoneNumber" />
+        <ValidationMessage For="@(() => _registerModel.PhoneNumber)" />
+    </div>
+
+    <div>
+        <label>Password:</label>
+        <InputText @bind-Value="_registerModel.Password" Type="password" />
+        <ValidationMessage For="@(() => _registerModel.Password)" />
+    </div>
+
+    <button type="submit">Register</button>
+</EditForm>
+
+@code {
+    
+    private RegisterModel _registerModel = new();
+    private string? _errorMessage;
+    
+    private async Task HandleRegister()
+    {
+        var response = await Http.PostAsJsonAsync("http://localhost:5205/api/auth/register", _registerModel);
+
+        if (response.IsSuccessStatusCode)
+        {
+            Navigation.NavigateTo("/auth/login");
+        }
+        else
+        {
+            _errorMessage = "Registration failed!";
+        }
+    }
+    
+    class RegisterModel
+    {
+        [Required]
+        public string UserName { get; set; } = "";
+        
+        [Required, EmailAddress]
+        public string Email { get; set; } = "";
+        
+        public string PhoneNumber { get; set; } = "";
+
+        [Required, DataType(DataType.Password)]
+        public string Password { get; set; } = "";
+    }
+}

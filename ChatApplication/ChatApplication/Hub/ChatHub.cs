@@ -1,4 +1,6 @@
-﻿namespace ChatApplication.Hub;
+﻿using System.Security.Claims;
+
+namespace ChatApplication.Hub;
 using Microsoft.AspNetCore.SignalR;
 
 public class ChatHub(ILogger<ChatHub> logger) : Hub
@@ -14,6 +16,7 @@ public class ChatHub(ILogger<ChatHub> logger) : Hub
 
     public async Task RegisterUser(string nickname)
     {
+        var username = Context.User?.FindFirst(ClaimTypes.Name)?.Value;
         if (ConnectedUsers.ContainsKey(Context.ConnectionId) || ConnectedUsers.ContainsValue(nickname))
         {
             _logger.LogWarning("Registration failed: nickname already in use");
@@ -54,6 +57,15 @@ public class ChatHub(ILogger<ChatHub> logger) : Hub
         }
     }
 
+    public async Task UpdateUserList(string roomName)
+    {
+        if (ChatRooms.ContainsKey(roomName))
+        {
+            var userInRoom = ChatRooms[roomName].ToList();
+            await Clients.Group(roomName).SendAsync("UpdateUserList", userInRoom);
+        }
+    }
+    
     public async Task JoinChatRoom(string roomName)
     {
         if (ConnectedUsers.TryGetValue(Context.ConnectionId, out var nickname))
@@ -64,6 +76,7 @@ public class ChatHub(ILogger<ChatHub> logger) : Hub
                 await Groups.AddToGroupAsync(Context.ConnectionId, roomName);
                 _logger.LogInformation("User '{Nickname}' joined chat room '{RoomName}'", nickname, roomName);
                 await Clients.Group(roomName).SendAsync("UserJoined", nickname);
+                await UpdateUserList(roomName);
             }
             else
             {
@@ -82,6 +95,7 @@ public class ChatHub(ILogger<ChatHub> logger) : Hub
                 await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomName);
                 _logger.LogInformation("User '{Nickname}' left chat room '{RoomName}'", nickname, roomName);
                 await Clients.Group(roomName).SendAsync("UserLeft", nickname);
+                await UpdateUserList(roomName);
             }
             else
             {
