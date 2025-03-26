@@ -13,6 +13,7 @@ public class ApplicationContext: IdentityDbContext<User>
 
     public new DbSet<User> Users { get; set; }
     public DbSet<Message> Messages { get; set; }
+    public DbSet<FriendConnection> FriendConnections { get; set; }
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -24,5 +25,15 @@ public class ApplicationContext: IdentityDbContext<User>
             .HasForeignKey(m => m.UserId);
         
         modelBuilder.Entity<IdentityUserLogin<string>>().HasKey(p => new { p.LoginProvider, p.ProviderKey });
+        
+        modelBuilder.Entity<FriendConnection>()
+            .HasOne(fc => fc.To)
+            .WithMany()
+            .HasForeignKey(f => f.ToId);
+        
+        modelBuilder.Entity<FriendConnection>()
+            .HasOne(fc => fc.From)
+            .WithMany()
+            .HasForeignKey(f => f.FromId);
     }
 }
