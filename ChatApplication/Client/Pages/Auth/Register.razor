@@ -3,72 +3,205 @@
 @inject HttpClient Http
 @using System.ComponentModel.DataAnnotations
 
-<h3>Register</h3>
-@if (_errorMessage != null)
-{
-    <p class="text-danger">@_errorMessage</p>
-}
+<div class="register-container">
+    <div class="register-card">
+        <div class="register-header">
+            <h2>Registrierung</h2>
+            <p class="text-muted">Erstellen Sie ein neues Konto</p>
+        </div>
 
-<EditForm Model="_registerModel" OnValidSubmit="HandleRegister">
-    <DataAnnotationsValidator />
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle-fill"></i> @_errorMessage
+                <button type="button" class="btn-close" @onclick="() => _errorMessage = null"></button>
+            </div>
+        }
 
-    <div>
-        <label>Username:</label>
-        <InputText @bind-Value="_registerModel.UserName" />
-        <ValidationMessage For="@(() => _registerModel.UserName)" />
+        <EditForm Model="_registerModel" OnValidSubmit="HandleRegister" class="register-form">
+            <DataAnnotationsValidator />
+
+            <div class="form-group mb-3">
+                <label for="username">Benutzername</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-person"></i></span>
+                    <InputText id="username" class="form-control" @bind-Value="_registerModel.UserName" placeholder="Benutzername eingeben" />
+                </div>
+                <ValidationMessage For="@(() => _registerModel.UserName)" class="text-danger" />
+            </div>
+
+            <div class="form-group mb-3">
+                <label for="email">E-Mail</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                    <InputText id="email" class="form-control" @bind-Value="_registerModel.Email" placeholder="beispiel@email.de" />
+                </div>
+                <ValidationMessage For="@(() => _registerModel.Email)" class="text-danger" />
+            </div>
+
+            <div class="form-group mb-3">
+                <label for="phone">Telefonnummer</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-telephone"></i></span>
+                    <InputText id="phone" class="form-control" @bind-Value="_registerModel.PhoneNumber" placeholder="Telefonnummer (optional)" />
+                </div>
+                <ValidationMessage For="@(() => _registerModel.PhoneNumber)" class="text-danger" />
+            </div>
+
+            <div class="form-group mb-4">
+                <label for="password">Passwort</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                    <InputText id="password" type="@(_showPassword ? "text" : "password")" class="form-control" 
+                               @bind-Value="_registerModel.Password" placeholder="Passwort eingeben" />
+                    <button class="btn btn-outline-secondary" type="button" @onclick="TogglePasswordVisibility">
+                        <i class="bi @(_showPassword ? "bi-eye-slash" : "bi-eye")"></i>
+                    </button>
+                </div>
+                <ValidationMessage For="@(() => _registerModel.Password)" class="text-danger" />
+                <div class="password-strength mt-2">
+                    <small class="text-muted">Passwort sollte mindestens 8 Zeichen, Groß- und Kleinbuchstaben, Zahlen und Sonderzeichen enthalten.</small>
+                </div>
+            </div>
+
+            <div class="form-check mb-4">
+                <InputCheckbox id="terms" class="form-check-input" @bind-Value="_acceptTerms" />
+                <label class="form-check-label" for="terms">
+                    Ich akzeptiere die <a href="/terms" target="_blank">Nutzungsbedingungen</a> und <a href="/privacy" target="_blank">Datenschutzerklärung</a>
+                </label>
+                @if (_showTermsError)
+                {
+                    <div class="text-danger mt-1">Sie müssen die Bedingungen akzeptieren, um fortzufahren</div>
+                }
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 mb-3" disabled="@(_isRegistering || !_acceptTerms)">
+                @if (_isRegistering)
+                {
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    <span class="ms-2">Registrierung...</span>
+                }
+                else
+                {
+                    <span>Registrieren</span>
+                }
+            </button>
+
+            <div class="text-center">
+                <p>Bereits registriert? <a href="/" class="text-primary">Anmelden</a></p>
+            </div>
+        </EditForm>
     </div>
+</div>
 
-    <div>
-        <label>Email:</label>
-        <InputText @bind-Value="_registerModel.Email" />
-        <ValidationMessage For="@(() => _registerModel.Email)" />
-    </div>
-
-    <div>
-        <label>Phone Number:</label>
-        <InputText @bind-Value="_registerModel.PhoneNumber" />
-        <ValidationMessage For="@(() => _registerModel.PhoneNumber)" />
-    </div>
-
-    <div>
-        <label>Password:</label>
-        <InputText @bind-Value="_registerModel.Password" Type="password" />
-        <ValidationMessage For="@(() => _registerModel.Password)" />
-    </div>
-
-    <button type="submit">Register</button>
-</EditForm>
+<style>
+    .register-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background-color: #f5f5f5;
+        padding: 20px;
+    }
+    
+    .register-card {
+        width: 100%;
+        max-width: 500px;
+        background-color: white;
+        border-radius: 10px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        padding: 30px;
+    }
+    
+    .register-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    
+    .register-header h2 {
+        color: #3a3a3a;
+        margin-bottom: 10px;
+    }
+    
+    .register-form label {
+        font-weight: 500;
+        margin-bottom: 5px;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .password-strength {
+        font-size: 0.85rem;
+    }
+</style>
 
 @code {
-    
     private RegisterModel _registerModel = new();
     private string? _errorMessage;
+    private bool _showPassword = false;
+    private bool _isRegistering = false;
+    private bool _acceptTerms = false;
+    private bool _showTermsError = false;
+    
+    private void TogglePasswordVisibility()
+    {
+        _showPassword = !_showPassword;
+    }
     
     private async Task HandleRegister()
     {
-        var response = await Http.PostAsJsonAsync("http://localhost:5205/api/auth/register", _registerModel);
-
-        if (response.IsSuccessStatusCode)
+        if (!_acceptTerms)
         {
-            Navigation.NavigateTo("/auth/login");
+            _showTermsError = true;
+            return;
         }
-        else
+        
+        _showTermsError = false;
+        _isRegistering = true;
+        
+        try
         {
-            _errorMessage = "Registration failed!";
+            var response = await Http.PostAsJsonAsync("http://localhost:5205/api/auth/register", _registerModel);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Navigation.NavigateTo("/", true);
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _errorMessage = string.IsNullOrEmpty(errorContent) 
+                    ? "Die Registrierung ist fehlgeschlagen!" 
+                    : errorContent;
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.";
+        }
+        finally
+        {
+            _isRegistering = false;
         }
     }
     
-    class RegisterModel
+    public class RegisterModel
     {
-        [Required]
+        [Required(ErrorMessage = "Benutzername ist erforderlich")]
         public string UserName { get; set; } = "";
         
-        [Required, EmailAddress]
+        [Required(ErrorMessage = "E-Mail ist erforderlich")]
+        [EmailAddress(ErrorMessage = "Ungültiges E-Mail-Format")]
         public string Email { get; set; } = "";
         
+        [Phone(ErrorMessage = "Ungültiges Telefonnummer-Format")]
         public string PhoneNumber { get; set; } = "";
 
-        [Required, DataType(DataType.Password)]
+        [Required(ErrorMessage = "Passwort ist erforderlich")]
+        [StringLength(100, ErrorMessage = "Das Passwort muss mindestens {2} Zeichen lang sein.", MinimumLength = 6)]
+        [DataType(DataType.Password)]
         public string Password { get; set; } = "";
     }
 }

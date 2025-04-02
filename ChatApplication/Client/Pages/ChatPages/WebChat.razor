@@ -1,0 +1,523 @@
+@page "/WebChat"
+@inject IJSRuntime JSRuntime
+@inject AuthStateProvider AuthStateProvider
+@using Client.Services
+@using Microsoft.AspNetCore.SignalR.Client
+
+<div class="chat-container">
+    <div class="sidebar">
+        <div class="app-title">
+            <h1>BlazorChat</h1>
+        </div>
+        <div class="user-profile">
+            <div class="avatar">
+                <img src="/api/placeholder/40/40" alt="Profile" />
+            </div>
+            <div class="user-name">@_nickname</div>
+        </div>
+        <div class="contact-list">
+            <h2>Kontakte</h2>
+            @foreach (var contact in _friends)
+            {
+                <div class="contact-item @(SelectedContact == contact ? "selected" : "")" @onclick="() => SelectContact(contact)">
+                    <div class="contact-avatar">
+                        <img src="/api/placeholder/32/32" alt="@contact" />
+                    </div>
+                    <div class="contact-info">
+                        <div class="contact-name">@contact</div>
+                        <div class="contact-status">@(OnlineContacts.Contains(contact) ? "Online" : "Offline")</div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="chat-main">
+        <div class="chat-header">
+            @if (!string.IsNullOrEmpty(SelectedContact))
+            {
+                <div class="selected-contact">
+                    <div class="contact-avatar">
+                        <img src="/api/placeholder/40/40" alt="@SelectedContact" />
+                    </div>
+                    <div class="contact-info">
+                        <div class="contact-name">@SelectedContact</div>
+                        <div class="contact-status">@(OnlineContacts.Contains(SelectedContact) ? "Online" : "Offline")</div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="no-selection">Wähle einen Kontakt aus, um zu chatten</div>
+            }
+        </div>
+
+        <div class="messages-container" id="messagesContainer">
+            @if (!string.IsNullOrEmpty(SelectedContact))
+            {
+                @foreach (var message in GetMessagesForCurrentContact())
+                {
+                    <div class="message @(message.IsFromCurrentUser ? "sent" : "received")">
+                        <div class="message-content">
+                            <div class="message-text">@message.Text</div>
+                            <div class="message-time">@message.Timestamp.ToString("HH:mm")</div>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="empty-chat">
+                    <div class="empty-chat-icon">💬</div>
+                    <div class="empty-chat-text">Wähle einen Kontakt aus, um mit dem Chatten zu beginnen</div>
+                </div>
+            }
+        </div>
+
+        <div class="message-input-container">
+            @if (!string.IsNullOrEmpty(SelectedContact))
+            {
+                <input
+                    type="text"
+                    class="message-input"
+                    placeholder="Nachricht eingeben..."
+                    @bind="_message"
+                    @bind:event="oninput"
+                    @onkeypress="HandleKeyPress" />
+                <button class="send-button" @onclick="SendMessage">
+                    <span>Senden</span>
+                </button>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .chat-container {
+        display: flex;
+        height: 100vh;
+        background-color: #f5f5f5;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .sidebar {
+        width: 280px;
+        background-color: #2e3a59;
+        color: white;
+        display: flex;
+        flex-direction: column;
+        border-right: 1px solid #eaeaea;
+    }
+
+    .app-title {
+        padding: 20px;
+        border-bottom: 1px solid #3d4b6e;
+    }
+
+    .app-title h1 {
+        margin: 0;
+        font-size: 24px;
+        font-weight: 600;
+    }
+
+    .user-profile {
+        display: flex;
+        align-items: center;
+        padding: 15px 20px;
+        border-bottom: 1px solid #3d4b6e;
+    }
+
+    .avatar img {
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+    .user-name {
+        margin-left: 10px;
+        font-weight: 500;
+    }
+
+    .contact-list {
+        flex: 1;
+        overflow-y: auto;
+    }
+
+    .contact-list h2 {
+        padding: 15px 20px;
+        margin: 0;
+        font-size: 16px;
+        color: #a0aec0;
+        font-weight: 500;
+    }
+
+    .contact-item {
+        display: flex;
+        align-items: center;
+        padding: 12px 20px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    .contact-item:hover {
+        background-color: #3d4b6e;
+    }
+
+    .contact-item.selected {
+        background-color: #4c5c7a;
+    }
+
+    .contact-avatar {
+        margin-right: 12px;
+    }
+
+    .contact-avatar img {
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+    .contact-name {
+        font-weight: 500;
+    }
+
+    .contact-status {
+        font-size: 12px;
+        color: #a0aec0;
+    }
+
+    .chat-main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .chat-header {
+        height: 70px;
+        padding: 0 20px;
+        display: flex;
+        align-items: center;
+        border-bottom: 1px solid #eaeaea;
+        background-color: white;
+    }
+
+    .selected-contact {
+        display: flex;
+        align-items: center;
+    }
+
+    .no-selection {
+        color: #718096;
+        font-weight: 500;
+    }
+
+    .messages-container {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+        background-color: #f8f9fa;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .message {
+        max-width: 70%;
+        margin-bottom: 15px;
+        display: flex;
+    }
+
+    .message.sent {
+        align-self: flex-end;
+    }
+
+    .message.received {
+        align-self: flex-start;
+    }
+
+    .message-content {
+        padding: 12px 16px;
+        border-radius: 18px;
+    }
+
+    .message.sent .message-content {
+        background-color: #4d79ff;
+        color: white;
+        border-bottom-right-radius: 4px;
+    }
+
+    .message.received .message-content {
+        background-color: white;
+        color: #333;
+        border-bottom-left-radius: 4px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+
+    .message-time {
+        font-size: 11px;
+        margin-top: 5px;
+        opacity: 0.7;
+        text-align: right;
+    }
+
+    .message-input-container {
+        display: flex;
+        padding: 15px;
+        background-color: white;
+        border-top: 1px solid #eaeaea;
+    }
+
+    .message-input {
+        flex: 1;
+        border: 1px solid #e2e8f0;
+        border-radius: 24px;
+        padding: 10px 20px;
+        font-size: 14px;
+        outline: none;
+        transition: border-color 0.2s;
+    }
+
+    .message-input:focus {
+        border-color: #4d79ff;
+        box-shadow: 0 0 0 2px rgba(77, 121, 255, 0.1);
+    }
+
+    .send-button {
+        margin-left: 10px;
+        background-color: #4d79ff;
+        color: white;
+        border: none;
+        border-radius: 24px;
+        padding: 0 20px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: background-color 0.2s;
+    }
+
+    .send-button:hover {
+        background-color: #3a66e0;
+    }
+
+    .empty-chat {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: #718096;
+    }
+
+    .empty-chat-icon {
+        font-size: 48px;
+        margin-bottom: 20px;
+    }
+
+    .empty-chat-text {
+        font-weight: 500;
+    }
+</style>
+
+@code {
+    private HubConnection? _hubConnection;
+    private string[] _friends = { "Flotschi123", "dloadinq" };
+    private string _nickname = "";
+    private string _message = "";
+    private string _newRoomName = "";
+    private string? _currentRoom = null;
+    private List<string> _chatRooms = new();
+    private List<string> _usersInRoom = new();
+    private List<string> OnlineContacts = new List<string> { "Flotschi123" };
+    private string SelectedContact { get; set; } = "";
+    private Dictionary<string, List<ChatMessage>> AllMessages { get; set; } = new Dictionary<string, List<ChatMessage>>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Initialize message dictionary for each friend
+        foreach (var friend in _friends)
+        {
+            AllMessages[friend] = new List<ChatMessage>();
+        }
+
+        // Select first contact by default
+        if (_friends.Length > 0)
+        {
+            SelectedContact = _friends[0];
+        }
+
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl("http://localhost:5205/chat")
+            .WithAutomaticReconnect()
+            .Build();
+        
+        _hubConnection.On<string, List<string>>("RegistrationSucceeded", (nickname, rooms) =>
+        {
+            _nickname = nickname;
+            _chatRooms = rooms;
+            StateHasChanged();
+        });
+
+        _hubConnection.On<string>("ChatRoomCreated", room =>
+        {
+            if (!_chatRooms.Contains(room))
+            {
+                _chatRooms.Add(room);
+                StateHasChanged();
+            }
+        });
+
+        _hubConnection.On<List<string>>("UpdateUserList", users =>
+        {
+            _usersInRoom = users;
+            OnlineContacts = users;
+            StateHasChanged();
+        });
+
+        _hubConnection.On<string, string>("ReceiveMessage", (user, msg) =>
+        {
+            // Add received message to the appropriate contact
+            if (user != _nickname && _friends.Contains(user))
+            {
+                AllMessages[user].Add(new ChatMessage 
+                { 
+                    Text = msg, 
+                    IsFromCurrentUser = false, 
+                    Timestamp = DateTime.Now 
+                });
+                StateHasChanged();
+                ScrollToBottom();
+            }
+        });
+
+        _hubConnection.On<string>("UserJoined", user =>
+        {
+            if (!OnlineContacts.Contains(user))
+            {
+                OnlineContacts.Add(user);
+            }
+            StateHasChanged();
+        });
+
+        _hubConnection.On<string>("UserLeft", user =>
+        {
+            OnlineContacts.Remove(user);
+            StateHasChanged();
+        });
+
+        await _hubConnection.StartAsync();
+
+        var username = await AuthStateProvider.GetUserName();
+
+        if (!string.IsNullOrEmpty(username))
+        {
+            _nickname = username;
+            await _hubConnection.InvokeAsync("RegisterUser", username);
+        }
+    }
+
+    private async Task RegisterUser()
+    {
+        await _hubConnection!.InvokeAsync("RegisterUser", _nickname);
+    }
+
+    private void SelectContact(string contact)
+    {
+        SelectedContact = contact;
+        StateHasChanged();
+        ScrollToBottom();
+    }
+
+    private List<ChatMessage> GetMessagesForCurrentContact()
+    {
+        if (string.IsNullOrEmpty(SelectedContact) || !AllMessages.ContainsKey(SelectedContact))
+        {
+            return new List<ChatMessage>();
+        }
+        
+        return AllMessages[SelectedContact];
+    }
+
+    private async Task SendMessage()
+    {
+        if (string.IsNullOrWhiteSpace(_message) || string.IsNullOrEmpty(SelectedContact))
+        {
+            return;
+        }
+
+        // Add message to local chat history
+        if (!AllMessages.ContainsKey(SelectedContact))
+        {
+            AllMessages[SelectedContact] = new List<ChatMessage>();
+        }
+        
+        AllMessages[SelectedContact].Add(new ChatMessage
+        {
+            Text = _message,
+            IsFromCurrentUser = true,
+            Timestamp = DateTime.Now
+        });
+
+        // Send message via SignalR
+        if (_hubConnection != null && _hubConnection.State == HubConnectionState.Connected)
+        {
+            try {
+                await _hubConnection.InvokeAsync("SendDirectMessage", SelectedContact, _message);
+            }
+            catch (Exception ex) {
+                // Fallback to standard message if direct messaging isn't implemented
+                if (_currentRoom != null) {
+                    await _hubConnection.InvokeAsync("SendMessage", _currentRoom, _message);
+                }
+            }
+        }
+        
+        _message = "";
+        StateHasChanged();
+        await ScrollToBottom();
+    }
+
+    private async Task JoinChatRoom(string room)
+    {
+        if (_currentRoom != null)
+        {
+            await _hubConnection!.InvokeAsync("LeaveChatRoom", _currentRoom);
+        }
+
+        _currentRoom = room;
+        await _hubConnection!.InvokeAsync("JoinChatRoom", room);
+    }
+
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SendMessage();
+        }
+    }
+    
+    private async Task ScrollToBottom()
+    {
+        await Task.Delay(50); // Kurze Verzögerung, um sicherzustellen, dass die UI aktualisiert wurde
+        await JSRuntime.InvokeVoidAsync("scrollToBottom", "messagesContainer");
+    }
+    
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JSRuntime.InvokeVoidAsync("eval", @"
+                window.scrollToBottom = function(id) {
+                    var element = document.getElementById(id);
+                    if (element) {
+                        element.scrollTop = element.scrollHeight;
+                    }
+                }
+            ");
+            
+            await ScrollToBottom();
+        }
+    }
+
+    public class ChatMessage
+    {
+        public string Text { get; set; }
+        public bool IsFromCurrentUser { get; set; }
+        public DateTime Timestamp { get; set; }
+    }
+}

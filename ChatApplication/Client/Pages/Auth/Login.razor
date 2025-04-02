@@ -7,45 +7,178 @@
 @inject ILogger<Login> Logger
 @inject AuthStateProvider AuthStateProvider
 
-<h3>Login</h3>
-@if (!string.IsNullOrEmpty(_errorMessage))
-{
-    <p class="text-danger">@_errorMessage</p>
-}
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-header">
+            <h2>Anmeldung</h2>
+            <p class="text-muted">Bitte melden Sie sich an, um fortzufahren</p>
+        </div>
 
-<div class="input-group mb-3">
-    <input class="form-control" @bind="_loginModel.Email" placeholder="Email" />
-    <input class="form-control" type="password" @bind="_loginModel.Password" placeholder="Password" />
-    <button class="btn btn-primary" @onclick="LoginUser">Login</button>
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle-fill"></i> @_errorMessage
+                <button type="button" class="btn-close" @onclick="() => _errorMessage = null"></button>
+            </div>
+        }
+
+        <div class="login-form">
+            <div class="form-group mb-3">
+                <label for="email">E-Mail</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                    <input type="email" id="email" class="form-control" @bind="_loginModel.Email" placeholder="beispiel@email.de" />
+                </div>
+                @if (_showValidationErrors && string.IsNullOrEmpty(_loginModel.Email))
+                {
+                    <small class="text-danger">E-Mail ist erforderlich</small>
+                }
+            </div>
+
+            <div class="form-group mb-4">
+                <label for="password">Passwort</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                    <input type="@(_showPassword ? "text" : "password")" id="password" class="form-control"
+                           @bind="_loginModel.Password" placeholder="Passwort eingeben" />
+                    <button class="btn btn-outline-secondary" type="button" @onclick="TogglePasswordVisibility">
+                        <i class="bi @(_showPassword ? "bi-eye-slash" : "bi-eye")"></i>
+                    </button>
+                </div>
+                @if (_showValidationErrors && string.IsNullOrEmpty(_loginModel.Password))
+                {
+                    <small class="text-danger">Passwort ist erforderlich</small>
+                }
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="remember-me" @bind="_rememberMe" />
+                    <label class="form-check-label" for="remember-me">Angemeldet bleiben</label>
+                </div>
+                <a href="/auth/forgot-password" class="text-primary">Passwort vergessen?</a>
+            </div>
+
+            <button class="btn btn-primary w-100 mb-3" @onclick="LoginUser" disabled="@_isLoading">
+                @if (_isLoading)
+                {
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    <span class="ms-2">Anmeldung...</span>
+                }
+                else
+                {
+                    <span>Anmelden</span>
+                }
+            </button>
+
+            <div class="text-center">
+                <p>Noch kein Konto? <a href="/auth/register" class="text-primary">Registrieren</a></p>
+            </div>
+        </div>
+    </div>
 </div>
 
-<button class="btn btn-primary" @onclick="NavigateToRegister">Not registered?</button>
+<style>
+    .login-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background-color: #f5f5f5;
+        padding: 20px;
+    }
+
+    .login-card {
+        width: 100%;
+        max-width: 450px;
+        background-color: white;
+        border-radius: 10px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        padding: 30px;
+    }
+
+    .login-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .login-header h2 {
+        color: #3a3a3a;
+        margin-bottom: 10px;
+    }
+
+    .login-form label {
+        font-weight: 500;
+        margin-bottom: 5px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+</style>
 
 @code {
     private LoginModel _loginModel = new();
     private string? _errorMessage;
+    private bool _showPassword = false;
+    private bool _rememberMe = false;
+    private bool _isLoading = false;
+    private bool _showValidationErrors = false;
+
+    private void TogglePasswordVisibility()
+    {
+        _showPassword = !_showPassword;
+    }
 
     private async Task LoginUser()
     {
-        var response = await Http.PostAsJsonAsync("http://localhost:5205/api/auth/login", _loginModel);
+        _showValidationErrors = true;
 
-        if (response.IsSuccessStatusCode)
+        if (string.IsNullOrEmpty(_loginModel.Email) || string.IsNullOrEmpty(_loginModel.Password))
+            return;
+
+        _isLoading = true;
+
+        try
         {
-            var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
-            await AuthStateProvider.SetUser(result!.Token);
+            var response = await Http.PostAsJsonAsync("http://localhost:5205/api/auth/login", _loginModel);
 
-            var handler = new JwtSecurityTokenHandler();
-            var jsonToken = handler.ReadToken(result.Token) as JwtSecurityToken;
-            var username = jsonToken!.Claims.First(claim => claim.Type == JwtRegisteredClaimNames.UniqueName)?.Value;
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
 
-            if (!string.IsNullOrEmpty(username))
-                await AuthStateProvider.SetUser(result.Token);
+                if (result != null)
+                {
+                    await AuthStateProvider.SetUser(result.Token);
 
-            Navigation.NavigateTo("/chat");
+                    var handler = new JwtSecurityTokenHandler();
+                    var jsonToken = handler.ReadToken(result.Token) as JwtSecurityToken;
+                    var username = jsonToken?.Claims.FirstOrDefault(claim => claim.Type == JwtRegisteredClaimNames.UniqueName)?.Value;
+
+                    if (!string.IsNullOrEmpty(username))
+                        await AuthStateProvider.SetUser(result.Token);
+
+                    Navigation.NavigateTo("/WebChat");
+                }
+                else
+                {
+                    _errorMessage = "Fehler bei der Anmeldung: Ungültige Antwort vom Server";
+                }
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                _errorMessage = string.IsNullOrEmpty(error) ? "Anmeldung fehlgeschlagen!" : error;
+            }
         }
-        else
+        catch (Exception ex)
         {
-            _errorMessage = "Login Fehlgeschlagen!";
+            Logger.LogError(ex, "Fehler bei der Anmeldung");
+            _errorMessage = "Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.";
+        }
+        finally
+        {
+            _isLoading = false;
         }
     }
 
@@ -60,7 +193,7 @@
     {
         [Required, EmailAddress]
         public string Email { get; set; } = "";
-        
+
         [Required, DataType(DataType.Password)]
         public string Password { get; set; } = "";
     }
