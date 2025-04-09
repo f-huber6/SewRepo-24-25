@@ -7,7 +7,14 @@
     background-size: cover;
 }
 
+.btn-container {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
 .btn-container > button {
     display: flex;
     gap: 0.5rem;
+    align-items: center;
 }
