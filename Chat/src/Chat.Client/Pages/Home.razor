@@ -1,0 +1,168 @@
+﻿@page "/Home"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+
+<PageTitle>Home</PageTitle>
+<MudContainer Class="d-flex flex-column" Style="width: 100%; margin-top: 20px;">
+    <MudContainer Style="display: flex; justify-content: end; margin-bottom: 10px; justify-self: end">
+        <MudItem Style="width: 150px;">
+            <MudSelect T="string" Label="Transaction Type" @bind-Value="_selectedType">
+                <MudSelectItem T="string" Value="@("All")">All</MudSelectItem>
+                <MudSelectItem T="string" Value="@("Income")">Income</MudSelectItem>
+                <MudSelectItem T="string" Value="@("Expense")">Expense</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem Style="width: 150px; margin-left: 20px;">
+            <MudSelect T="string" Label="Date Filter" @bind-Value="_selectedTimespan">
+                <MudSelectItem T="string" Value="@("AllTime")">All Time</MudSelectItem>
+                <MudSelectItem T="string" Value="@("LastYear")">Last Year</MudSelectItem>
+                <MudSelectItem T="string" Value="@("LastMonth")">Last Month</MudSelectItem>
+                <MudSelectItem T="string" Value="@("Last14Days")">Last 14 Days</MudSelectItem>
+                <MudSelectItem T="string" Value="@("LastWeek")">Last Week</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem Style="width: 150px; margin-left: 20px;">
+            <MudSelect T="string" Label="Category Filter" @bind-Value="_selectedCategory">
+                <MudSelectItem T="string" Value="@("AllTime")">All Categories</MudSelectItem>
+                <MudSelectItem T="string" Value="@("Groceries")">Groceries</MudSelectItem>
+                <MudSelectItem T="string" Value="@("Subscriptions")">Subscriptions</MudSelectItem>
+                <MudSelectItem T="string" Value="@("LivingCosts")">Living Costs</MudSelectItem>
+                <MudSelectItem T="string" Value="@("Insurance")">Insurance</MudSelectItem>
+                <MudSelectItem T="string" Value="@("Salary")">Salary</MudSelectItem>
+                <MudSelectItem T="string" Value="@("Investments")">Investments</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudIconButton Style="width: 50px" Icon="@Icons.Material.Filled.Delete" Class="ml-3" Color="Color.Error" Variant="Variant.Filled" OnClick="RefreshFilter"/>
+    </MudContainer>
+
+    
+    <!---Summe die Eingenommen und Ausgegeben wurde-->
+    
+    <MudTable Items="@GetFilteredData()" Hover="true" Breakpoint="Breakpoint.None" Bordered="true" Dense="false" Striped="true">
+        <HeaderContent>
+            <MudTh><MudTableSortLabel T="BankTransaction" SortBy="new Func<BankTransaction, object>(x => x.Nr)">Nr</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel T="BankTransaction" SortBy="new Func<BankTransaction, object>(x => x.Text)">Text</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel T="BankTransaction" SortBy="new Func<BankTransaction, object>(x => x.sum)">Sum</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel T="BankTransaction" SortBy="new Func<BankTransaction, object>(x => x.Category)">Category</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel T="BankTransaction" SortBy="new Func<BankTransaction, object>(x => x.Date)">Date</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel T="BankTransaction" SortBy="new Func<BankTransaction, object>(x => x.ToFrom)">To/From</MudTableSortLabel></MudTh>
+        </HeaderContent>
+        <RowTemplate Context="item">
+            <MudTd DataLabel="Nr">@item.Nr</MudTd>
+            <MudTd DataLabel="Text">@item.Text</MudTd>
+            <MudTd DataLabel="Sum" Class="d-flex justify-content-end" Style="@($"color: {(item.Type == "Income" ? "green" : "red")}; font-weight: bold; text-align: right; white-space: nowrap;")">
+                <span Style="display: flex; justify-content: space-between; flex-direction: row-reverse; width: 100%;">
+                    <span>@item.sum.ToString("N2")</span>
+                    <span style="color: black; font-weight: normal">€</span>
+                </span>
+            </MudTd>
+            <MudTd DataLabel="Category">@item.Category</MudTd>
+            <MudTd DataLabel="Date">@item.Date.ToString("dd.MM.yyyy")</MudTd>
+            <MudTd DataLabel="To/From">@item.ToFrom</MudTd>
+        </RowTemplate>
+    </MudTable>
+    <MudContainer Class="d-flex flex-row mt-3 mb-3 p-0" Style="">
+        <MudButton Style="width: 100px" Color="Color.Primary" Variant="Variant.Filled" OnClick="RefreshData">Refresh</MudButton>
+        <MudButton Style="width: 170px;" Class="ml-3" Color="Color.Primary" Variant="Variant.Filled">Create Report</MudButton>
+    </MudContainer>
+    
+</MudContainer>
+        
+@code
+{
+    private string _selectedType = "All";
+    private string _selectedTimespan = "LastMonth";
+    private string _selectedCategory = "All";
+    
+    private readonly BankTransaction[] _data =
+    [
+
+        new BankTransaction(1, "Salary Payment", 3500.00, "Salary", DateTime.Now.AddDays(-2), "Income", "Company XYZ"),
+        new BankTransaction(2, "Grocery Shopping", -120.50, "Groceries", DateTime.Now.AddDays(-5), "Expense", "Supermart"),
+        new BankTransaction(3, "Netflix Subscription", -15.99, "Subscriptions", DateTime.Now.AddDays(-10), "Expense", "Netflix"),
+        new BankTransaction(4, "Electricity Bill", -60.75, "LivingCosts", DateTime.Now.AddDays(-7), "Expense", "Power Company"),
+        new BankTransaction(5, "Health Insurance", -200.00, "Insurance", DateTime.Now.AddDays(-12), "Expense", "HealthInsure Co."),
+        new BankTransaction(6, "Stock Dividend", 75.00, "Investments", DateTime.Now.AddDays(-14), "Income", "Stock Market"),
+        new BankTransaction(7, "Dining Out", -45.30, "Groceries", DateTime.Now.AddDays(-3), "Expense", "Restaurant"),
+        new BankTransaction(8, "Internet Bill", -40.00, "Subscriptions", DateTime.Now.AddDays(-20), "Expense", "ISP Provider"),
+        new BankTransaction(9, "Apartment Rent", -1200.00, "LivingCosts", DateTime.Now.AddDays(-25), "Expense", "Landlord"),
+        new BankTransaction(10, "Car Insurance", -95.50, "Insurance", DateTime.Now.AddDays(-8), "Expense", "AutoInsure Co."),
+        new BankTransaction(11, "Freelance Payment", 500.00, "Salary", DateTime.Now.AddDays(-6), "Income", "Client ABC"),
+        new BankTransaction(12, "Bitcoin Investment", -300.00, "Investments", DateTime.Now.AddDays(-15), "Expense", "Crypto Exchange"),
+        new BankTransaction(13, "Bonus Payment", 800.00, "Salary", DateTime.Now.AddDays(-4), "Income", "Company XYZ"),
+        new BankTransaction(14, "Coffee Subscription", -12.99, "Subscriptions", DateTime.Now.AddDays(-18), "Expense", "Coffee Club"),
+        new BankTransaction(15, "Stock Purchase", -500.00, "Investments", DateTime.Now.AddDays(-22), "Expense", "Stock Market"),
+        new BankTransaction(16, "Gas Refill", -60.00, "Groceries", DateTime.Now.AddDays(-1), "Expense", "Gas Station"),
+        new BankTransaction(17, "Amazon Prime", -14.99, "Subscriptions", DateTime.Now.AddDays(-30), "Expense", "Amazon"),
+        new BankTransaction(18, "Gym Membership", -50.00, "Subscriptions", DateTime.Now.AddDays(-11), "Expense", "Local Gym"),
+        new BankTransaction(19, "Freelance Project", 750.00, "Salary", DateTime.Now.AddDays(-9), "Income", "Client XYZ"),
+        new BankTransaction(20, "Life Insurance", -80.00, "Insurance", DateTime.Now.AddDays(-16), "Expense", "Insurance Co.")
+    ];
+    
+
+    private IEnumerable<BankTransaction> GetFilteredData()
+    {
+        var result = _data;
+
+        switch (_selectedCategory)
+        {
+            case "All":
+                break;
+            case "Groceries": 
+                result = _data.Where(t => t.Category == "Groceries").ToArray();
+                break;
+            case "Subscriptions":
+                result = _data.Where(t => t.Category == "Subscriptions").ToArray();
+                break;
+            case "LivingCosts":
+                result = _data.Where(t => t.Category == "Rent").ToArray();
+                break;
+            case "Insurance":
+                result = _data.Where(t => t.Category == "Ensurance").ToArray();
+                break;
+            case "Salary":
+                result = _data.Where(t => t.Category == "Salary").ToArray();
+                break;
+            case "Investments":
+                result = _data.Where(t => t.Category == "Investments").ToArray();
+                break;
+        }
+        
+        if (_selectedTimespan == "AllTime")
+            return result;
+        
+        if (_selectedTimespan == "LastYear")
+            result = result.Where(t => t.Date >= DateTime.Now.AddYears(-1)).ToArray();
+        
+        if (_selectedTimespan == "LastMonth")
+            result = result.Where(t => t.Date >= DateTime.Now.AddMonths(-1)).ToArray();
+        
+        if (_selectedTimespan == "Last14Days")
+            result = result.Where(t => t.Date >= DateTime.Now.AddDays(-14)).ToArray();
+        
+        if (_selectedTimespan == "LastWeek")
+            result = result.Where(t => t.Date >= DateTime.Now.AddDays(-7)).ToArray();
+        
+        if (_selectedType == "All")
+            return result;
+
+        return result.Where(t => t.Type == _selectedType);
+    }
+
+    private void RefreshFilter()
+    {
+         _selectedType = "All";
+         _selectedTimespan = "LastMonth";
+         _selectedCategory = "All";
+         StateHasChanged();
+    }
+    
+    
+    private void RefreshData()
+    {
+        
+        StateHasChanged();
+    }
+
+    public record BankTransaction(int Nr, string Text, double sum, string Category , DateTime Date, string Type, string ToFrom);
+}

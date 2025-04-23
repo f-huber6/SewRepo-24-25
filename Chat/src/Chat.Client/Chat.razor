@@ -1,0 +1,475 @@
+﻿@using System.Diagnostics
+@using global::Chat.Client.Services
+@inject IdentityStateProvider IdentityStateProvider
+@inject ChatService ChatService
+@inject HttpClient Http
+@inject IJSRuntime Js
+@inject UnreadMessageService UnreadMessageService
+@implements IAsyncDisposable
+@inject IConfiguration Configuration
+
+<MudPaper Class="p-4 h-100 d-flex flex-column chat-container" Elevation="2">
+    <MudText Typo="Typo.h6" Class="mb-2">@FriendName</MudText>
+
+    <div class="flex-grow-1 overflow-auto mb-3 chat-history" style="max-height: 70vh;">
+        @foreach (var msg in _messages)
+        {
+            var currentDate = msg.SentAt.Date;
+            if (_lastDate != currentDate)
+            {
+                string label = (currentDate == DateTime.Today) ? "Heute"
+                    : (currentDate == DateTime.Today.AddDays(-1)) ? "Gestern"
+                    : currentDate.ToString("dddd, dd. MMMM yyyy");
+
+                <div class="d-flex justify-content-center align-items-center my-3 date-separator">
+                    <div class="line flex-grow-1 mx-2"></div>
+                    <div class="px-3 py-1 date-label">@label</div>
+                    <div class="line flex-grow-1 mx-2"></div>
+                </div>
+                _lastDate = currentDate;
+            }
+
+            <div @key="msg.SentAt" class="mb-2 d-flex @(msg.IsOwn ? "justify-content-end" : "justify-content-start")">
+                <div class="message-bubble" style="background-color:@(msg.IsOwn ? "#DCF8C6" : "#F1F0F0")">
+                    <div>@msg.Text</div>
+
+                    @if (msg.Files?.Any() == true)
+                    {
+                        foreach (var file in msg.Files)
+                        {
+                            <div class="mt-1">
+                                <a href="@($"http://192.168.1.78:5142{file.FileUrl}")" download="@file.FileName" target="_blank">@file.FileName</a>
+                            </div>
+                        }
+                    }
+                    
+                    <div class="text-muted text-end" style="font-size: 0.75rem;">
+                        @msg.SentAt.ToShortTimeString()
+                        @if (msg.IsOwn && msg.IsSeen)
+                        {
+                            <span class="ms-1">✅</span>
+                        }
+                        else if (msg.IsOwn)
+                        {
+                            <span class="ms-1">✔️</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+
+        <div id="bottomRef" tabindex="-1" @ref="_bottomRef"></div>
+    </div>
+
+    <div class="d-flex align-items-center gap-2 mt-auto chat-input position-relative">
+        <MudIconButton Icon="@Icons.Material.Filled.EmojiEmotions" OnClick="ToggleEmojiPicker" />
+        <div class="attach-wrapper">
+            <MudIconButton Icon="@Icons.Material.Filled.AttachFile" OnClick="OpenFileDialog" DisableRipple="true" />
+            <InputFile OnChange="UploadSelectedFile"
+                       @ref="_fileInput"
+                       style="display: none;"
+                       accept=".pdf,.docx,.xlsx,.xls,.pptx,.ppt" />
+        </div>
+
+        @if (_selectedFile is not null)
+        {
+            <MudChip Color="Color.Default" Variant="Variant.Outlined" OnClose="ClearSelectedFile" T="string">
+            @_selectedFile.Name
+            </MudChip>
+        }
+        
+        <MudTextField @bind-Value="_newMessage" Placeholder="Nachricht..." Class="flex-grow-1 rounded-pill px-3" />
+        <MudButton OnClick="SendMessage" Disabled="@string.IsNullOrWhiteSpace(_newMessage)" Color="Color.Primary" Variant="Variant.Filled" Class="rounded-pill px-4">
+            Senden
+        </MudButton>
+
+        @if (_showEmojiPicker)
+        {
+            <div id="emojiPickerContainer" class="emoji-picker-container">
+                <MudPaper Class="p-2 d-flex flex-wrap gap-1">
+                    @foreach (var emoji in _emojis)
+                    {
+                        <MudButton Variant="Variant.Text" Class="emoji-button" OnClick="() => AddEmoji(emoji)">@emoji</MudButton>
+                    }
+                </MudPaper>
+            </div>
+        }
+    </div>
+</MudPaper>
+
+<style>
+    .chat-container {
+        background: linear-gradient(to right, #f8f9fa, #ffffff);
+        border-radius: 16px;
+    }
+
+    .message-bubble {
+        max-width: 70%;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.75rem;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        word-break: break-word;
+    }
+
+    .date-separator .line {
+        height: 1px;
+        background-color: #ccc;
+        opacity: 0.5;
+    }
+
+    .date-label {
+        background-color: #f0f0f0;
+        border-radius: 16px;
+        font-size: 0.8rem;
+        color: #666;
+        white-space: nowrap;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+
+    .chat-history::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .chat-history::-webkit-scrollbar-thumb {
+        background-color: rgba(0, 0, 0, 0.1);
+        border-radius: 4px;
+    }
+
+    .chat-input {
+        border-top: 1px solid #e0e0e0;
+        padding-top: 12px;
+    }
+
+    .emoji-button {
+        font-size: 1.2rem;
+        min-width: 36px;
+    }
+
+    .emoji-picker-container {
+        position: absolute;
+        bottom: 55px;
+        left: 0;
+        background-color: white;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        padding: 8px;
+        z-index: 999;
+    }
+
+    .attach-wrapper {
+        position: relative;
+        display: inline-block;
+    }
+    .attach-wrapper input[type="file"] {
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        opacity: 0;
+        cursor: pointer;
+    }
+
+    .message-bubble a {
+        color: #007bff;
+        text-decoration: none;
+    }
+    .message-bubble a:hover {
+        text-decoration: underline;
+    }
+</style>
+
+@code {
+    [Parameter] public string FriendId { get; set; } = "";
+    [Parameter] public string? FriendName { get; set; }
+
+    private string? _userId;
+    private string? _newMessage = "";
+    private List<ChatMessageModel> _messages = new();
+    private ElementReference _bottomRef;
+    private string _currentFriendId = "";
+    private bool _shouldScroll = false;
+    private DateTime? _lastDate = null;
+    
+    private bool _showEmojiPicker = false;
+    private readonly List<string> _emojis =
+    [
+        "😀", "😁", "😂", "🤣", "😃", "😄", "😅", "😆", "😉", "😊",
+        "😋", "😎", "😍", "😘", "😗", "😙", "😚", "🙂", "🤗", "🤩"
+    ];
+    private DotNetObjectReference<Chat>? _dotNetRef;
+    private string? _clickHandlerId;
+    
+    private IBrowserFile? _selectedFile;
+    private InputFile? _fileInput;
+    private string? _latestMessageId;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        _userId = await IdentityStateProvider.GetUserId();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_shouldScroll)
+        {
+            _shouldScroll = false;
+            await ScrollToBottom(smooth: false) ;
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_currentFriendId != FriendId)
+        {
+            _currentFriendId = FriendId;
+            _messages.Clear();
+
+            if (!string.IsNullOrEmpty(_currentFriendId))
+                await ChatService.LeaveRoomAsync(_currentFriendId);
+
+            await ChatService.JoinRoomAsync(FriendId);
+
+            ChatService.OnMessageReceived -= HandleIncomingMessage;
+            ChatService.OnMessageSeen -= HandleSeenMessage;
+            ChatService.OnMessageReceived += HandleIncomingMessage;
+            ChatService.OnMessageSeen += HandleSeenMessage;
+
+            await LoadChatHistory();
+            _shouldScroll = true;
+        }
+    }
+
+    private async Task LoadChatHistory()
+    {
+        var dtoList = await Http.GetFromJsonAsync<List<ChatMessageModel>>($"/api/chat/history/{FriendId}") ?? new();
+        _messages = dtoList.OrderBy(s => s.SentAt).Select(dto => new ChatMessageModel
+        {
+            SenderId = dto.SenderId,
+            ReceiverId = dto.ReceiverId,
+            Text = dto.Text,
+            SentAt = dto.SentAt,
+            IsSeen = dto.IsSeen,
+            SeenAt = dto.SeenAt,
+            IsOwn = dto.SenderId == _userId,
+            Files = dto.Files?.Select(f => new ChatFileModel
+            {
+                FileName = f.FileName,
+                FileUrl = f.FileUrl,
+                ContentType = f.ContentType,
+                FileSize = f.FileSize,
+                UploadedAt = f.UploadedAt
+            }).ToList() ?? new List<ChatFileModel>()
+        }).ToList();
+
+        await Http.PostAsJsonAsync("/api/chat/mark-as-seen", FriendId);
+        await ChatService.MarkAsSeenAsync(FriendId, _userId!);
+        await UnreadMessageService.LoadAsync();
+    }
+
+    private async Task SendMessage()
+    {
+        if (string.IsNullOrWhiteSpace(_newMessage) && _selectedFile == null)
+            return;
+
+        var dtoToSend = new ChatMessageModel
+        {
+            SenderId = _userId!,
+            ReceiverId = FriendId,
+            Text = _newMessage ?? "",
+            SentAt = DateTime.Now,
+            IsOwn = true
+        };
+
+        var sendRes = await Http.PostAsJsonAsync("/api/chat/send-message", dtoToSend);
+        if (!sendRes.IsSuccessStatusCode)
+            return;
+
+        var sent = await sendRes.Content.ReadFromJsonAsync<ChatMessageModel>();
+        _latestMessageId = sent!.Id;
+
+        ChatFileModel? uploadedFile = null;
+        if (_selectedFile != null && !string.IsNullOrWhiteSpace(_latestMessageId))
+        {
+            await using var stream = _selectedFile.OpenReadStream(3 * 1024 * 1024);
+            var content = new MultipartFormDataContent
+            {
+                { new StreamContent(stream), "file", _selectedFile.Name },
+                { new StringContent(_latestMessageId), "messageId" }
+            };
+
+            var upRes = await Http.PostAsync("/api/chat/upload-file", content);
+            if (upRes.IsSuccessStatusCode)
+            {
+                uploadedFile = await upRes.Content.ReadFromJsonAsync<ChatFileModel>();
+            }
+
+            _selectedFile = null;
+        }
+
+        var msgToAdd = new ChatMessageModel
+        {
+            Id = sent.Id,
+            SenderId = sent.SenderId,
+            ReceiverId = sent.ReceiverId,
+            Text = sent.Text,
+            SentAt = sent.SentAt,
+            IsOwn = true,
+            Files = uploadedFile != null ? new List<ChatFileModel> { uploadedFile } : new()
+        };
+        _messages.Add(msgToAdd);
+
+        await ChatService.SendMessageAsync(_userId!, FriendId, sent.Text, uploadedFile?.FileUrl, uploadedFile?.FileName);
+
+        _newMessage = "";
+        _shouldScroll = true;
+        StateHasChanged();
+    }
+
+    private async Task HandleIncomingMessage(string senderId, string message, string? fileUrl = null, string? fileName = null)
+    {
+        if (senderId != FriendId) return;
+
+        var msg = new ChatMessageModel
+        {
+            SenderId = senderId,
+            ReceiverId = _userId!,
+            Text = message,
+            SentAt = DateTime.Now,
+            IsOwn = false,
+            IsSeen = true,
+            SeenAt = DateTime.Now
+        };
+
+        if (!string.IsNullOrWhiteSpace(fileUrl))
+        {
+            msg.Files.Add(new ChatFileModel
+            {
+                FileName = fileName ?? "DefaultFileName",
+                FileUrl = fileUrl
+            });
+        }
+        
+        _messages.Add(msg);
+
+        await ChatService.MarkAsSeenAsync(senderId, _userId!);
+        await Http.PostAsJsonAsync("/api/chat/mark-as-seen", FriendId);
+        await UnreadMessageService.LoadAsync();
+
+        _shouldScroll = true;
+        await InvokeAsync(StateHasChanged);
+        await InvokeAsync(() => ScrollToBottom(smooth: true));
+    }
+
+    private async Task HandleSeenMessage(string senderId, string receiverId)
+    {
+        var changed = false;
+        foreach (var message in _messages.Where(m =>
+                     m.SenderId == _userId && m.ReceiverId == receiverId && !m.IsSeen))
+        {
+            message.IsSeen = true;
+            message.SeenAt = DateTime.Now;
+            message.IsOwn = true;
+            changed = true;
+        }
+
+        if (changed)
+        {
+            await UnreadMessageService.LoadAsync();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task ScrollToBottom(bool smooth)
+    {
+        await Js.InvokeVoidAsync("scrollToBottom", "bottomRef", smooth);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        ChatService.OnMessageReceived -= HandleIncomingMessage;
+        ChatService.OnMessageSeen -= HandleSeenMessage;
+        await DisposeClickHandlerAsync();
+        _dotNetRef?.Dispose();
+    }
+    
+    private async Task ToggleEmojiPicker()
+    {
+        _showEmojiPicker = !_showEmojiPicker;
+
+        if (_showEmojiPicker)
+        {
+            _dotNetRef ??= DotNetObjectReference.Create(this);
+            _clickHandlerId = await Js.InvokeAsync<string>(
+                "emojiPickerHelper.registerOutsideClickHandler",
+                _dotNetRef, "emojiPickerContainer");
+        }
+        else
+        {
+            await DisposeClickHandlerAsync();
+        }
+    }
+
+    
+    [JSInvokable]
+    public async Task CloseEmojiPicker()
+    {
+        _showEmojiPicker = false;
+        await DisposeClickHandlerAsync();
+        StateHasChanged();
+    }
+    
+    private async Task DisposeClickHandlerAsync()
+    {
+        if (_clickHandlerId is not null)
+        {
+            await Js.InvokeVoidAsync("emojiPickerHelper.disposeOutsideClickHandler", _clickHandlerId);
+            _clickHandlerId = null;
+        }
+    }
+    
+    private void AddEmoji(string emoji)
+    {
+        _newMessage += emoji;
+    }
+
+    private Task UploadSelectedFile(InputFileChangeEventArgs e)
+    {
+        _selectedFile = e.File;
+        return Task.CompletedTask;
+    }
+    
+    private async Task OpenFileDialog()
+    {
+        if (_fileInput is not null)
+        {
+            await Js.InvokeVoidAsync("blazorFileDialog", _fileInput.Element);
+        }
+    }
+    
+    private void ClearSelectedFile()
+    {
+        _selectedFile = null;
+    }
+
+    public class ChatMessageModel
+    {
+        public string Id { get; set; } = Guid.NewGuid().ToString();
+        public string SenderId { get; set; } = "";
+        public string ReceiverId { get; set; } = "";
+        public string Text { get; set; } = "";
+        public DateTime SentAt { get; set; } = DateTime.Now;
+        public bool IsSeen { get; set; } = false;
+        public DateTime? SeenAt { get; set; }
+        public bool IsOwn { get; set; } = false;
+        public List<ChatFileModel> Files { get; set; } = new();
+    }
+    
+    public class ChatFileModel
+    {
+        public string FileName { get; set; } = string.Empty;
+        public string FileUrl { get; set; } = string.Empty;
+        public string? ContentType { get; set; }
+        public long? FileSize { get; set; }
+        public DateTime UploadedAt { get; set; }
+    }
+}

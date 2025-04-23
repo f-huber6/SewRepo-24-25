@@ -1,0 +1,80 @@
+﻿@page "/auth/register"
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@using System.ComponentModel.DataAnnotations
+
+<h3>Register</h3>
+
+@if (_errorMessage != null)
+{
+    <p class="text-danger">@_errorMessage</p>
+}
+
+<EditForm Model="_registerModel" OnValidSubmit="HandleRegister">
+    <DataAnnotationsValidator />
+
+    <div>
+        <label>First Name:</label>
+        <InputText @bind-Value="_registerModel.FirstName" />
+        <ValidationMessage For="@(() => _registerModel.FirstName)" />
+    </div>
+
+    <div>
+        <label>Last Name:</label>
+        <InputText @bind-Value="_registerModel.LastName" />
+        <ValidationMessage For="@(() => _registerModel.LastName)" />
+    </div>
+
+    <div>
+        <label>Username:</label>
+        <InputText @bind-Value="_registerModel.UserName" />
+        <ValidationMessage For="@(() => _registerModel.UserName)" />
+    </div>
+
+    <div>
+        <label>Email:</label>
+        <InputText @bind-Value="_registerModel.Email" />
+        <ValidationMessage For="@(() => _registerModel.Email)" />
+    </div>
+
+    <div>
+        <label>Phone Number:</label>
+        <InputText @bind-Value="_registerModel.PhoneNumber" />
+        <ValidationMessage For="@(() => _registerModel.PhoneNumber)" />
+    </div>
+
+    <div>
+        <label>Password:</label>
+        <InputText @bind-Value="_registerModel.Password" Type="password" />
+        <ValidationMessage For="@(() => _registerModel.Password)" />
+    </div>
+
+    <button type="submit">Register</button>
+</EditForm>
+
+@code {
+    
+    private RegisterModel _registerModel = new();
+    private string? _errorMessage;
+
+    public async Task HandleRegister()
+    {
+        var response = await Http.PostAsJsonAsync("/api/auth/register", _registerModel);
+
+        if (response.IsSuccessStatusCode)
+            Navigation.NavigateTo("/");
+
+        else
+            _errorMessage = "Registration failed";
+    }
+
+    sealed class RegisterModel
+    {
+        [Required] public string FirstName { get; set; } = "";
+        [Required] public string LastName { get; set; } = "";
+        [Required] public string UserName { get; set; } = "";
+        [EmailAddress, Required] public string Email { get; set; } = "";
+        [Required] public string PhoneNumber { get; set; } = "";
+        [DataType(DataType.Password), Required] public string Password { get; set; } = "";
+    }
+}
