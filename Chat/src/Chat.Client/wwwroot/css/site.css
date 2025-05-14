@@ -1,0 +1,82 @@
+﻿.settings-wrapper {
+    max-width: 800px;
+    margin: 2rem 2rem 4rem 4rem;
+    padding: 1rem;
+}
+
+.settings-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.field-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 1rem;
+}
+
+.field-label {
+    font-weight: 500;
+    width: 160px;
+}
+
+.field-content {
+    flex-grow: 1;
+    min-width: 200px;
+}
+
+.input {
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    width: 100%;
+    max-width: 300px;
+}
+
+.field-pair {
+    display: flex;
+    gap: 0.5rem;
+}
+
+@media (max-width: 768px) {
+    .settings-wrapper {
+        margin: 1rem;
+        padding: 1rem;
+    }
+
+    .field-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .field-label {
+        width: auto;
+    }
+
+    .field-content {
+        width: 100%;
+    }
+
+    .input {
+        max-width: 100%;
+    }
+}
+
+/* ✅ Entfernt den Fokus-Balken komplett */
+.no-underline .mud-input-underline:before,
+.no-underline .mud-input-underline:after {
+    display: none !important;
+    border: none !important;
+    height: 0 !important;
+}
+
+
+
+
+
+

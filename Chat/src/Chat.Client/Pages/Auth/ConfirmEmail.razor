@@ -1,0 +1,16 @@
+﻿@page "/confirmemail"
+@inject NavigationManager Navigation
+
+<h3>Email Confirmation</h3>
+<p>If you confirmed your email, try again to log in</p>
+<button class="btn btn-primary" @onclick="RedirectToLogin">
+    Zum Login
+</button>
+
+@code
+{
+    private void RedirectToLogin()
+    {
+        Navigation.NavigateTo("/", true);
+    }
+}

@@ -1,0 +1,36 @@
+﻿@using global::Chat.Client.Services
+@inherits LayoutComponentBase
+@inject IdentityStateProvider IdentityStateProvider
+@inject ChatService ChatService
+@inject UnreadMessageService UnreadMessageService
+<div class="page" xmlns="http://www.w3.org/1999/html">
+    <NavMenu/>
+    <main>
+        <div class="top-row px-4">
+            <HeaderMenu/> 
+        </div>
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>
+
+<MudThemeProvider />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await ChatService.InitializeGlobalConnectionAsync();
+
+        ChatService.OnMessageReceived += async (_,__,___,____)
+            => await UnreadMessageService.LoadAsync();
+        ChatService.OnMessageSeen += async (_,__)
+            => await UnreadMessageService.LoadAsync();
+
+        // initial laden:
+        await UnreadMessageService.LoadAsync();
+    }
+}

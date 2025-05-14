@@ -1,0 +1,305 @@
+﻿@page "/Friends"
+@using global::Chat.Client.Services
+@inject HttpClient Http
+@inject UnreadMessageService UnreadMessageService
+@inject FriendRequestService RequestService
+@inject FriendService FriendService
+@inject ChatService ChatService
+@implements IDisposable
+
+<div class="friend-chat-layout">
+    <div class="friends-panel">
+        <MudText Typo="Typo.h6" Class="mb-2">Incoming Requests</MudText>
+        @if (RequestService.FriendRequests.Count > 0)
+        {
+            @foreach (var r in RequestService.FriendRequests)
+            {
+                <MudPaper Class="d-flex align-items-center justify-content-between p-2 mb-2" Style="border-radius:16px;">
+                    <div>
+                        <MudText Typo="Typo.subtitle1">@r.FirstName @r.LastName</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Info">@r.UserName</MudText>
+                    </div>
+                    <div>
+                        <MudIconButton Icon="@Icons.Material.Filled.PersonAdd"
+                                       Color="Color.Success"
+                                       OnClick="() => AcceptRequest(r.Id)"
+                                       ToolTip="Accept"
+                                       Size="Size.Small" />
+
+                        <MudIconButton Icon="@Icons.Material.Filled.PersonRemove"
+                                       Color="Color.Error"
+                                       OnClick="() => RemoveFriend(r.Id)"
+                                       ToolTip="Reject"
+                                       Size="Size.Small" />
+                    </div>
+                </MudPaper>
+            }
+        }
+        else
+        {
+            <MudText Typo="Typo.caption" Color="Color.Secondary">No new requests</MudText>
+        }
+
+        <MudDivider Class="my-4" />
+
+        <div class="mb-4">
+            <MudTextField
+                Value="_searchQuery"
+                ValueChanged="@(EventCallback.Factory.Create<string>(this, OnSearchChanged))"
+                ValueExpression="@(() => _searchQuery)"
+                Placeholder="Search for new friends …"
+                Adornment="Adornment.Start"
+                AdornmentIcon="@Icons.Material.Filled.Search"
+                Immediate="true"
+                DisableUnderLine="true"
+                Class="no-underline custom-searchbar" />
+        </div>
+
+        @if (_filteredUsers != null && _filteredUsers.Count > 0)
+        {
+            @foreach (var user in _filteredUsers)
+            {
+                <MudPaper Class="d-flex align-items-center justify-content-between p-3 mb-2" Style="border-radius:16px;">
+                    <div>
+                        <MudText Typo="Typo.h6">@user.FirstName @user.LastName</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Info">@user.UserName</MudText>
+                    </div>
+                    <MudIconButton Icon="@Icons.Material.Filled.PersonAdd"
+                                   Color="Color.Secondary"
+                                   Size="Size.Medium"
+                                   OnClick="() => AddFriend(user.Id)" />
+                </MudPaper>
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(_searchQuery))
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary">No users found.</MudText>
+        }
+
+        <MudDivider Class="my-4" />
+        
+        <MudText Typo="Typo.h6" Class="mb-2">Your Friends</MudText>
+        @if (_friendList?.Count > 0)
+        {
+            <MudList T="User" Dense="true">
+                @foreach (var f in _friendList)
+                {
+                    var fullName = f.FirstName + " " + f.LastName;
+
+                    <MudListItem Class="friend-item rounded-lg p-2"
+                                 OnClick="@(() => SelectFriend(f.Id, fullName))">
+                        <div class="d-flex align-items-center justify-content-between w-100">
+                            <div class="d-flex align-items-center">
+                                <MudIcon Icon="@Icons.Material.Filled.AccountCircle"
+                                         Size="Size.Large"
+                                         Class="me-2" />
+                                <MudText Typo="Typo.body1">@fullName</MudText>
+                            </div>
+
+                            <div class="d-flex align-items-center gap-2">
+                                @if (f.UnreadCount > 0)
+                                {
+                                    <MudBadge Color="Color.Error"
+                                              Content="@f.UnreadCount"
+                                              Class="ms-1" />
+                                }
+
+                                <MudIconButton Icon="@Icons.Material.Filled.PersonRemove"
+                                               Color="Color.Error"
+                                               OnClick="() => RemoveFriend(f.Id)"
+                                               ToolTip="Remove Friend"
+                                               Size="Size.Small" />
+                            </div>
+                        </div>
+                    </MudListItem>
+                }
+            </MudList>
+        }
+        else
+        {
+            <MudText Typo="Typo.caption" Color="Color.Secondary">No friends yet</MudText>
+        }
+
+    </div>
+
+    <div class="chat-panel">
+        @if (!string.IsNullOrEmpty(_selectedFriendId))
+        {
+            <Chat FriendId="@_selectedFriendId" FriendName="@_selectedFriendName" />
+        }
+    </div>
+</div>
+
+<style>
+    .friend-chat-layout {
+        display: flex;
+        flex-direction: row;
+        height: calc(100vh - 64px);
+    }
+
+    .friends-panel {
+        width: 30%;
+        min-width: 250px;
+        background-color: #f8f9fa;
+        padding: 20px;
+        overflow-y: auto;
+    }
+
+    .chat-panel {
+        flex-grow: 1;
+        background-color: white;
+        height: 100%;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+</style>
+
+@code {
+    private string _searchQuery = string.Empty;
+    private List<User> _allUsers = new();
+    private List<User>? _filteredUsers = new();
+    private List<User> _friendList = new();
+    private string? _selectedFriendId;
+    private string? _selectedFriendName;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _allUsers = await Http.GetFromJsonAsync<List<User>>("/api/users/get-all-users") ?? new();
+        }
+        catch (HttpRequestException e)
+        {
+            _errorMessage = "Error loading users: " + e.Message;
+        }
+        _filteredUsers = new();
+
+        UnreadMessageService.OnUnreadCountsChanged += UpdateFriendsUnread;
+        await UnreadMessageService.LoadAsync();
+        await RequestService.LoadAsync();
+
+        FriendService.OnFriendRequestsChanged += async () =>
+        {
+            await RequestService.LoadAsync();
+            await InvokeAsync(StateHasChanged);
+        };
+        
+        await FriendService.InitializeAsync();
+        await LoadFriends();
+
+        await ChatService.InitializeGlobalConnectionAsync();
+        ChatService.OnFriendRemoved += async (removerId) =>
+        {
+            _friendList.RemoveAll(f => f.Id == removerId);
+            RequestService.FriendRequests.RemoveAll(s => s.Id == removerId);
+            
+            if (_selectedFriendId == removerId)
+            {
+                _selectedFriendId = null;
+                _selectedFriendName = null;
+            }
+            
+            await InvokeAsync(StateHasChanged);
+        };
+    }
+
+    private async Task OnSearchChanged(string val)
+    {
+        _searchQuery = val;
+        
+        if (string.IsNullOrWhiteSpace(_searchQuery))
+        {
+            _filteredUsers = new List<User>();
+        }
+
+        else
+        {
+            _filteredUsers = _allUsers
+                .Where(u => u.UserName.Contains(val, StringComparison.OrdinalIgnoreCase)
+                            && _friendList.All(s => s.Id != u.Id))
+                .ToList();
+        }
+        
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task AddFriend(string friendId)
+    {
+        var res = await Http.PostAsync($"/api/users/add-friend/{friendId}", null);
+        if (res.IsSuccessStatusCode)
+        {
+            await LoadFriends();
+            _searchQuery = string.Empty;
+            _filteredUsers = new List<User>();
+            await InvokeAsync(StateHasChanged);
+            await FriendService.NotifyFriendRequest(friendId);
+        }
+    }
+
+    private async Task AcceptRequest(string? friendId)
+    {
+        var res = await Http.PostAsync($"/api/users/add-friend/{friendId}", null);
+        if (res.IsSuccessStatusCode)
+        {
+            RequestService.FriendRequests.RemoveAll(r => r.Id == friendId);
+            await InvokeAsync(StateHasChanged);
+            await LoadFriends();
+            await UnreadMessageService.LoadAsync();
+        }
+    }
+
+    private async Task RemoveFriend(string? friendId)
+    {
+        var res = await Http.DeleteAsync($"/api/users/remove-friend/{friendId}");
+        if (res.IsSuccessStatusCode)
+        {
+            await LoadFriends();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+    private async Task LoadFriends()
+    {
+        _friendList = await Http.GetFromJsonAsync<List<User>>("/api/users/get-all-friends") ?? new List<User>();
+        await UpdateFriendsUnread();
+    }
+
+    private Task SelectFriend(string id, string name)
+    {
+        _selectedFriendId = id;
+        _selectedFriendName = name;
+        return Task.CompletedTask;
+    }
+
+    private Task UpdateFriendsUnread()
+    {
+        foreach (var f in _friendList)
+            f.UnreadCount = UnreadMessageService.GetUnreadCountForFriend(f.Id);
+        return InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        UnreadMessageService.OnUnreadCountsChanged -= UpdateFriendsUnread;
+        FriendService.OnFriendRequestsChanged -= async () =>
+        {
+            await RequestService.LoadAsync();
+            await InvokeAsync(StateHasChanged);
+        };
+        ChatService.OnFriendRemoved -= async (removerId) =>
+        {
+            _friendList.RemoveAll(f => f.Id == removerId);
+            await InvokeAsync(StateHasChanged);
+        };
+    }
+
+    class User
+    {
+        public string Id { get; set; } = "";
+        public string FirstName { get; set; } = "";
+        public string LastName { get; set; } = "";
+        public string UserName { get; set; } = "";
+        public int UnreadCount{ get; set; } = 0;
+    }
+}

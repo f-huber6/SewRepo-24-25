@@ -1,0 +1,79 @@
+﻿@page "/Register"
+@using System.ComponentModel.DataAnnotations
+@using System.Net
+@layout AuthLayout
+@inject NavigationManager Navigation
+@inject HttpClient Http
+
+<div class="body">
+    <div class="register-container">
+        <div class="register-box">
+            <MudIcon Icon="@Icons.Material.Filled.Person2" Title="Person" Size="Size.Large" />
+            <hr/>
+            @if (_errorMessage != null)
+            {
+                <p class="text-danger">@_errorMessage</p>
+            }
+
+            <div class="input-group">
+                <label for="fullname">Vorname</label>
+                <input type="text" id="fullname" placeholder="Max" @bind="_registerModel.FirstName" />
+            </div>
+
+            <div class="input-group">
+                <label for="fullname">Nachname</label>
+                <input type="text" id="fullname" placeholder="Mustermann" @bind="_registerModel.LastName" />
+            </div>
+
+            <div class="input-group">
+                <label for="username">Benutername</label>
+                <input type="text" id="username" placeholder="maxMusti" @bind="_registerModel.UserName" />
+            </div>
+
+            <div class="input-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" placeholder="max.mustermann@gmail.com" @bind="_registerModel.Email" />
+            </div>
+
+            <div class="input-group">
+                <label for="password">Passwort</label>
+                <input type="password" id="password" placeholder="Passwort" @bind="_registerModel.Password" />
+            </div>
+
+            <button @onclick="HandleRegister">Registrieren</button>
+        </div>
+    </div>
+</div>
+
+
+
+@code {
+    private RegisterModel _registerModel = new();
+    private string _errorMessage;
+
+    private const string DefaultPhoneNumber = "0664 72359923";
+
+    public async Task HandleRegister()
+    {
+        _registerModel.PhoneNumber = DefaultPhoneNumber;
+
+        var response = await Http.PostAsJsonAsync("/api/auth/register", _registerModel);
+
+        if (response.IsSuccessStatusCode)
+            Navigation.NavigateTo("/");
+
+        else
+            _errorMessage = "Registration failed";
+    }
+
+    sealed class RegisterModel
+    {
+        [Required] public string FirstName { get; set; } = "";
+        [Required] public string LastName { get; set; } = "";
+        [Required] public string UserName { get; set; } = "";
+        [EmailAddress, Required] public string Email { get; set; } = "";
+        [DataType(DataType.PhoneNumber)] public string PhoneNumber { get; set; } = ""; // Kann hier leer bleiben
+        [DataType(DataType.Password), Required] public string Password { get; set; } = "";
+    }
+}
+

@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Google.Protobuf" Version="3.30.2" />
+        <PackageReference Include="Grpc.Net.Client" Version="2.70.0" />
+        <PackageReference Include="Grpc.Net.Client.Web" Version="2.70.0" />
+        <PackageReference Include="Grpc.Net.ClientFactory" Version="2.70.0" />
+        <PackageReference Include="Grpc.Tools" Version="2.71.0">
+          <PrivateAssets>all</PrivateAssets>
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="9.0.3" />
+        <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="9.0.3" />
+        <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="9.0.2"/>
+        <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="9.0.2" PrivateAssets="all"/>
+        <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="9.0.4" />
+        <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.6.1" />
+        <PackageReference Include="System.Net.Http.Json" Version="9.0.3" />
+        <PackageReference Include="Mudblazor" Version="8.4.0" />
+    
+    </ItemGroup>
+
+    <ItemGroup>
+        <Reference Include="Microsoft.Extensions.DependencyInjection.Abstractions">
+            <HintPath>..\..\..\..\..\..\..\..\.dotnet\packs\Microsoft.AspNetCore.App.Ref\9.0.2\ref\net9.0\Microsoft.Extensions.DependencyInjection.Abstractions.dll</HintPath>
+        </Reference>
+    </ItemGroup>
+
+    <ItemGroup>
+      <_ContentIncludedByDefault Remove="Pages\UserManagement\Manager2Fa.razor" />
+      <_ContentIncludedByDefault Remove="Pages\BankConnect\RedirectFromBank.razor" />
+      <_ContentIncludedByDefault Remove="Pages\BankConnect\TermsAndConditions.razor" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Chat.Database\Chat.Database.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="wwwroot\uploads\" />
+    </ItemGroup>
+</Project>

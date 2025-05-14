@@ -1,0 +1,199 @@
+﻿@page "/UserSettings"
+@inject HttpClient Http
+@inject IdentityStateProvider IdentityStateProvider
+@using System.Net.Http.Headers
+@using global::Chat.Client.Services
+
+
+<div class="settings-wrapper">
+    <MudTabs @bind-ActivePanelIndex="_tabIndex"
+             Rounded="false"
+             Border="false"
+             TextColor="Color.Primary"
+             IndicatorColor="Color.Primary"
+             DisableSlider="true"
+             Centered="false">  
+        <br/>
+        <MudTabPanel Text="Personal Info">
+            <div class="flex items-center gap-4 mb-6">
+                <div class="d-flex align-items-center px-4 py-3">
+                    @if (!string.IsNullOrEmpty(_photoUrl))
+                    {
+                        <img src="@_photoUrl" alt="Zufallsbild" class="me-2" style="width: 50px; height: 50px; border-radius: 50px;"/>
+                    }
+                    else
+                    {
+                        <MudIcon Icon="@Icons.Material.Filled.Image" Size="Size.Large" Class="me-2"/>
+                    }
+                    <MudText Typo="Typo.h6" Style="font-weight: bold">@_user.UserName</MudText>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                @Field("Name", () => $"{_user.FirstName} {_user.LastName}", "Name")
+                @Field("Email", () => _user.Email, "Email")
+                @Field("Phone Number", () => _user.PhoneNumber, "PhoneNumber")
+                @Field("Username", () => _user.UserName, "UserName")
+            </div>
+            <br/>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-6" OnClick="SaveAll">
+                Save Changes
+            </MudButton>
+        </MudTabPanel>
+
+        <MudTabPanel Text="Security">
+            <div class="settings-section">
+                @Field("Current Password", () => "********", "CurrentPassword")
+                @Field("New Password", () => "********", "NewPassword")
+                @Field("Confirm Password", () => "********", "ConfirmPassword")
+                @Field("Two-Factor Authentication", () => _securityModel.TwoFactorEnabled.ToString(), "TwoFactorEnabled")
+
+            </div>
+            <br/>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-6" OnClick="SaveSecurityChanges">
+                Save Changes
+            </MudButton>
+        </MudTabPanel>
+    </MudTabs>
+</div>
+
+
+
+@code {
+    private UpdateUserModel _user = new();
+    private UpdateSecurityModel _securityModel = new();
+    private HashSet<string> _editableFields = new();
+    private int _tabIndex = 0;
+    private string _username = "Loading...";
+    private string? _errorMessage = string.Empty;
+    private string? _photoUrl;
+
+    protected override async Task OnInitializedAsync()
+    {
+        
+        _username = await IdentityStateProvider.GetUser() ?? "User";
+        
+        var seed = Guid.NewGuid().ToString().Substring(0, 1); 
+        _photoUrl = $"https://picsum.photos/seed/{seed}/200";
+        
+        try
+        {
+            var result = await Http.GetFromJsonAsync<UpdateUserModel>("/api/auth/user-info");
+            if (result is not null)
+                _user = result;
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Error fetching user info: {e.Message}");
+        }
+    }
+
+    private void ToggleEdit(string key)
+    {
+        if (_editableFields.Contains(key))
+            _editableFields.Remove(key);
+        else
+            _editableFields.Add(key);
+    }
+
+    private bool IsEditable(string key) => _editableFields.Contains(key);
+
+    private async Task SaveAll()
+    {
+        await Http.PutAsJsonAsync("/api/auth/update", _user);
+        _editableFields.Clear();
+        await IdentityStateProvider.GetUser();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task SaveSecurityChanges()
+    {
+        if (_securityModel.NewPassword != _securityModel.ConfirmPassword)
+        {
+            _errorMessage = "Passwords do not match.";
+            return;
+        }
+
+        var token = await IdentityStateProvider.GetToken();
+        if (!string.IsNullOrEmpty(token))
+        {
+            Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            var response = await Http.PutAsJsonAsync("/api/auth/update-security", _securityModel);
+            if (response.IsSuccessStatusCode)
+            {
+                _errorMessage = "Security settings updated successfully.";
+                _editableFields.Clear();
+            }
+            else
+            {
+                _errorMessage = "Failed to update security settings.";
+            }
+        }
+    }
+
+    RenderFragment Field(string label, Func<string> valueFunc, string key) => @<div class="field-row">
+        <div class="field-label">@label</div>
+        <div class="field-content">
+            @if (IsEditable(key))
+            {
+                @switch (key)
+                {
+                    case "Name":
+                        <div class="field-pair">
+                            <input class="input" @bind="_user.FirstName" placeholder="First Name" />
+                            <input class="input" @bind="_user.LastName" placeholder="Last Name" />
+                        </div>
+                        break;
+                    case "Email":
+                        <input class="input" @bind="_user.Email" />
+                        break;
+                    case "PhoneNumber":
+                        <input class="input" @bind="_user.PhoneNumber" />
+                        break;
+                    case "UserName":
+                        <input class="input" @bind="_user.UserName" />
+                        break;
+                    case "TwoFactorEnabled":
+                        <MudSwitch @bind-Checked="_user.TwoFactorEnabled"
+                                   Color="Color.Primary"
+                                   Label="Activate 2 FA"
+                                   T="bool"/>
+                        break;
+                    case "CurrentPassword": 
+                        <input class="input" @bind="_securityModel.CurrentPassword" type="password" placeholder="Current Password" />
+                        break;
+                    case "NewPassword": 
+                        <input class="input" @bind="_securityModel.NewPassword" type="password" placeholder="New Password" />
+                        break;
+                    case "ConfirmPassword": 
+                        <input class="input" @bind="_securityModel.ConfirmPassword" type="password" placeholder="Confirm Password" />
+                        break;
+                }
+            }
+            else
+            {
+                <span class="text-gray-700">@valueFunc.Invoke()</span>
+            }
+        </div>
+        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="@(() => ToggleEdit(key))" />
+    </div>;
+
+    public class UpdateUserModel
+    {
+        public string FirstName { get; set; } = "";
+        public string LastName { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string PhoneNumber { get; set; } = "";
+        public string UserName { get; set; } = "";
+        public bool TwoFactorEnabled { get; set; }
+    }
+
+    public class UpdateSecurityModel
+    {
+        public string CurrentPassword { get; set; } = "";
+        public string NewPassword { get; set; } = "";
+        public string ConfirmPassword { get; set; } = "";
+        public bool TwoFactorEnabled { get; set; } = false;
+    }
+}
+

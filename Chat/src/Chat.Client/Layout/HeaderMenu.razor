@@ -1,0 +1,45 @@
+﻿@using global::Chat.Client.Pages.Settings
+@using global::Chat.Client.Services
+@inject IdentityStateProvider IdentityStateProvider
+@inject NavigationManager NavigationManager
+@inject ChatService ChatService
+
+<button @onclick="Settings">
+    @if (!string.IsNullOrEmpty(_photoUrl))
+    {
+        <img src="@_photoUrl" alt="Zufallsbild" class="me-2" style="width: 35px; height: 35px; border-radius: 50px;" />
+    }
+    else
+    {
+        <MudIcon Icon="@Icons.Material.Filled.Image" Size="Size.Large" Class="me-2" />
+    }
+    <MudText Typo="Typo.h6" Style="font-weight: bold">@_username</MudText>
+</button>
+<MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Logout" Size="Size.Large" @onclick="Logout"/>
+
+
+@code {
+
+    private string _username = "Loading...";
+    private string? _photoUrl;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        _username = await IdentityStateProvider.GetUser() ?? "User";
+        
+        var seed = Guid.NewGuid().ToString().Substring(0, 8); 
+        _photoUrl = $"https://picsum.photos/seed/{seed}/200";;
+    }
+    
+    private async Task Logout()
+    {
+        await IdentityStateProvider.Logout();
+        await ChatService.DisposeAsync();
+        NavigationManager.NavigateTo("/");
+    }
+
+    private void Settings()
+    {
+        NavigationManager.NavigateTo("/UserSettings");
+    }
+}

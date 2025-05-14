@@ -1,0 +1,125 @@
+﻿@page "/"
+@inject HttpClient Http
+@inject IdentityStateProvider IdentityStateProvider
+@inject NavigationManager Navigation
+@using System.ComponentModel.DataAnnotations
+@using System.IdentityModel.Tokens.Jwt
+@using global::Chat.Client.Services
+@using MudBlazor
+@layout AuthLayout
+
+<div class="login-container">
+<div class="login-box">
+
+    <MudIcon Icon="@Icons.Material.Filled.Person2" Title="Person" Size="Size.Large" />
+    <hr/>
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <p class="text-danger">@_errorMessage</p>
+    }
+
+    <div class="input-group">
+        <label for="username">Benutzername</label>
+        <input type="text" id="username" placeholder="Benutzername" @bind="_loginModel.UserName" />
+    </div>
+
+    <div class="input-group">
+        <label for="password">Passwort</label>
+        <input type="password" id="password" placeholder="Passwort" @bind="_loginModel.Password" />
+    </div>
+    <button class="btn btn-primary" @onclick="LoginUser">Anmelden</button>
+
+    <p class="register-text">Noch kein Konto? <a href="/Register">Registrieren</a></p>
+</div>
+</div>
+@if (_emailNotConfirmed)
+{
+    <p class="text-danger">Your email is not confirmed. Please confirm your email.</p>
+    <button class="btn btn-primary" @onclick="SendEmailConfirmation">Send confirmation email</button>
+}
+
+
+@code {
+    private LoginModel _loginModel = new();
+    private string? _errorMessage;
+    private bool _emailNotConfirmed = false;
+    private string _unconfirmedUserId = "";
+
+    private async Task LoginUser()
+    {
+        var response = await Http.PostAsJsonAsync("/api/auth/login", _loginModel);
+
+        if (response.IsSuccessStatusCode)
+        {
+            var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
+            await IdentityStateProvider.SetUser(result!.Token);
+
+            var handler = new JwtSecurityTokenHandler();
+            var jsonToken = handler.ReadToken(result.Token) as JwtSecurityToken;
+            var username = jsonToken!.Claims.First(claim => claim.Type == JwtRegisteredClaimNames.UniqueName)?.Value;
+
+            if (!string.IsNullOrEmpty(username))
+                await IdentityStateProvider.SetUser(result.Token);
+
+            await Task.Delay(500);
+            
+            Navigation.NavigateTo("/Friends", forceLoad:true);
+        }
+        else
+        {
+            var content = await response.Content.ReadAsStringAsync();
+
+            if (content.Contains("EmailNotConfirmed"))
+            {
+                var error = await response.Content.ReadFromJsonAsync<UnconfirmedEmailResponse>();
+                _emailNotConfirmed = true;
+                Navigation.NavigateTo($"confirmEmail?UserId={error?.UserId}");
+            }
+            
+            else if (content.Contains("TwoFactorRequired"))
+            {
+                var error = await response.Content.ReadFromJsonAsync<TwoFactorRequiredResponse>();
+                Navigation.NavigateTo($"/auth/2fa?userId={error?.UserId}");
+            }
+
+            else
+            {
+                _errorMessage = "Login failed";
+            }
+        }
+    }
+
+    private async Task SendEmailConfirmation()
+    {
+        var response = await Http.PostAsJsonAsync("api/auth/send-confirmation", _unconfirmedUserId);
+        _errorMessage = response.IsSuccessStatusCode? "Email sent" : "Failed to send email";
+    }
+
+    class LoginModel
+    {
+        [Required]
+        public string UserName { get; set; } = "";
+
+        [Required, DataType(DataType.Password)]
+        public string Password { get; set; } = "";
+    }
+
+    class LoginResponse
+    {
+        public string Token { get; set; } = "";
+    }
+
+    class UnconfirmedEmailResponse
+    {
+        public string Message { get; set; } = "";
+        public string UserId { get; set; } = "";
+        public string Email { get; set; } = "";
+    }
+    
+    class TwoFactorRequiredResponse
+    {
+        public string Message { get; set; } = "";
+        public string UserId { get; set; } = "";
+    }
+}

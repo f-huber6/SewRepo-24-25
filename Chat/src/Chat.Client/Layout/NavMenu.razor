@@ -1,0 +1,43 @@
+﻿@using global::Chat.Client.Services
+@implements IDisposable
+@inject IdentityStateProvider IdentityStateProvider
+@inject UnreadMessageService UnreadMessageService
+
+<MudPaper Width="250px" Class="d-inline-flex bg-light" Style="height: 100vh" Elevation="0">
+    <MudNavMenu Class="mud-width-full">
+
+        <div class="d-flex align-items-center px-4 py-3">
+            <MudText Typo="Typo.h4" Style="font-family: 'Berlin Sans FB'">Chat-Fabrik</MudText>
+        </div>
+        <MudNavLink Href="/Friends" Icon="@Icons.Material.Filled.PersonSearch">Friends
+            @if (_unreadTotal > 0)
+            {
+                <MudBadge Color="Color.Error" Content="@_unreadTotal" Class="ms-2"></MudBadge>
+            }
+        </MudNavLink>
+        <MudNavGroup Title="Settings" Icon="@Icons.Material.Filled.Settings" Expanded="true">
+            <MudNavLink Href="/UserSettings" Icon="@Icons.Material.Filled.People" IconColor="Color.Success">Users</MudNavLink>
+        </MudNavGroup>
+    </MudNavMenu>
+</MudPaper>
+
+
+@code {
+    private int _unreadTotal;
+
+    protected override async Task OnInitializedAsync()
+    {
+        UnreadMessageService.OnUnreadCountsChanged += UpdateBadge;
+        await UnreadMessageService.LoadAsync();
+        _unreadTotal = UnreadMessageService.GetTotalUnread();
+    }
+
+    private Task UpdateBadge()
+    {
+        _unreadTotal = UnreadMessageService.GetTotalUnread();
+        return InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+        => UnreadMessageService.OnUnreadCountsChanged -= UpdateBadge;
+}
