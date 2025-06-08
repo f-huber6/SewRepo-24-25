@@ -1,0 +1,65 @@
+﻿@using University.Client.Services
+@using University.StudentService.API.Dto
+@inject StudentHttpService StudentService
+@inject IDialogService DialogService
+
+<EditForm Model="_model" OnValidSubmit="Submit">
+    <MudDialogContent>
+        <MudTextField @bind-Value="_model.FirstName"
+                      Label="Vorname" Required="true" />
+        <MudTextField @bind-Value="_model.LastName"
+                      Label="Nachname" Required="true" />
+        <MudDatePicker @bind-Date="_model.EnrollmentDate"
+                       Label="Einschreibung" Required="true" />
+        <MudDatePicker @bind-Date="_model.GraduationDate"
+                       Label="Abschluss" />
+    </MudDialogContent>
+    <MudDialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cancel">Abbrechen</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" ButtonType="ButtonType.Submit">
+            @(IsEdit? "Speichern" : "Anlegen")
+        </MudButton>
+    </MudDialogActions>
+</EditForm>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public StudentDto?       Existing { get; set; }
+
+    private StudentCreateDto _model = new();
+    private bool IsEdit;
+
+    protected override void OnInitialized()
+    {
+        if (Existing != null)
+        {
+            IsEdit = true;
+            _model = new StudentCreateDto
+            {
+                FirstName      = Existing.FirstName,
+                LastName       = Existing.LastName,
+                EnrollmentDate = Existing.EnrollmentDate,
+                GraduationDate = Existing.GraduationDate
+            };
+        }
+    }
+
+    async Task Submit()
+    {
+        if (IsEdit && Existing != null)
+            await StudentService.UpdateAsync(Existing.Id,
+                new StudentUpdateDto
+                {
+                    FirstName      = _model.FirstName,
+                    LastName       = _model.LastName,
+                    EnrollmentDate = _model.EnrollmentDate,
+                    GraduationDate = _model.GraduationDate
+                });
+        else
+            await StudentService.CreateAsync(_model);
+
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    void Cancel() => MudDialog.Cancel();
+}
