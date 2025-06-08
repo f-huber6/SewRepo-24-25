@@ -1,0 +1,107 @@
+﻿@page "/students"
+@using MudBlazor
+@using University.Client.Services
+@using University.StudentService.API.Dto
+@inject StudentHttpService StudentService
+@inject IDialogService       DialogService
+@inject ISnackbar            Snackbar
+
+<MudPaper Class="pa-4">
+
+  <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+    <MudText Typo="Typo.h5">Studentenverwaltung</MudText>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.PersonAdd"
+               OnClick="OpenCreateDialog">
+      Neuer Student
+    </MudButton>
+  </MudStack>
+
+  <MudTable Items="_students" Hover="true" Elevation="0"
+            Loading="_loading" Dense="true" Bordered="true">
+    <HeaderContent>
+      <MudTh>Vorname</MudTh>
+      <MudTh>Nachname</MudTh>
+      <MudTh>Einschreibung</MudTh>
+      <MudTh>Abschluss</MudTh>
+      <MudTh Align="Align.Center">Aktionen</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+      <MudTd>@context.FirstName</MudTd>
+      <MudTd>@context.LastName</MudTd>
+      <MudTd>@context.EnrollmentDate.ToShortDateString()</MudTd>
+      <MudTd>@(context.GraduationDate?.ToShortDateString() ?? "-")</MudTd>
+      <MudTd Align="Align.Center">
+        <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                       Color="Color.Primary"
+                       OnClick="() => OpenEditDialog(context)" />
+        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                       Color="Color.Error"
+                       OnClick="() => ConfirmDelete(context.Id)" />
+      </MudTd>
+    </RowTemplate>
+    <PagerContent>
+      <MudTablePager PageSizeOptions="new int[]{5,10,20}" />
+    </PagerContent>
+  </MudTable>
+</MudPaper>
+
+@code {
+  private List<StudentDto> _students = new();
+  private bool             _loading;
+
+  protected override async Task OnInitializedAsync()
+  {
+    await LoadAsync();
+  }
+
+  private async Task LoadAsync()
+  {
+    _loading = true;
+    _students = await StudentService.GetAllAsync();
+    _loading = false;
+  }
+
+  async Task OpenCreateDialog()
+  {
+    var options = new DialogOptions
+    {
+      CloseButton = true,
+      MaxWidth = MaxWidth.Medium,
+      FullWidth = true
+    };
+    
+    var dialog = await DialogService.ShowAsync<StudentEditDialog>("Neuen Studenten anlegen", options);
+    var result = await dialog.Result;
+    if (result is { Canceled: false })
+      await LoadAsync();
+  }
+
+  async Task OpenEditDialog(StudentDto dto)
+  {
+    var parameters = new DialogParameters { ["Existing"] = dto };
+    var options = new DialogOptions
+    {
+      CloseButton = true,
+      MaxWidth = MaxWidth.Medium,
+      FullWidth = true
+    };
+    var dialog = await DialogService.ShowAsync<StudentEditDialog>("Student bearbeiten", parameters, options);
+    var result = await dialog.Result;
+    if (result is { Canceled: false })
+      await LoadAsync();
+  }
+
+  async Task ConfirmDelete(string? id)
+  {
+    bool? ok = await DialogService.ShowMessageBox(
+      "Löschen?", "Wirklich löschen?",
+      yesText: "Ja", noText: "Nein");
+    if (ok == true)
+    {
+      await StudentService.DeleteAsync(id);
+      Snackbar.Add("Student gelöscht", Severity.Success);
+      await LoadAsync();
+    }
+  }
+}
