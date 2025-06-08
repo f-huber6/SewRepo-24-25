@@ -4,22 +4,24 @@
 @inject IDialogService DialogService
 
 <EditForm Model="_model" OnValidSubmit="Submit">
-    <MudDialogContent>
-        <MudTextField @bind-Value="_model.FirstName"
-                      Label="Vorname" Required="true" />
-        <MudTextField @bind-Value="_model.LastName"
-                      Label="Nachname" Required="true" />
-        <MudDatePicker @bind-Date="_model.EnrollmentDate"
-                       Label="Einschreibung" Required="true" />
-        <MudDatePicker @bind-Date="_model.GraduationDate"
-                       Label="Abschluss" />
-    </MudDialogContent>
-    <MudDialogActions>
-        <MudButton Variant="Variant.Text" OnClick="Cancel">Abbrechen</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" ButtonType="ButtonType.Submit">
-            @(IsEdit? "Speichern" : "Anlegen")
-        </MudButton>
-    </MudDialogActions>
+    <MudDialog>
+        <DialogContent>
+            <MudTextField @bind-Value="_model.FirstName"
+                          Label="Vorname" Required="true"/>
+            <MudTextField @bind-Value="_model.LastName"
+                          Label="Nachname" Required="true"/>
+            <MudDatePicker @bind-Date="_model.EnrollmentDate"
+                           Label="Einschreibung" Required="true"/>
+            <MudDatePicker @bind-Date="_model.GraduationDate"
+                           Label="Abschluss"/>
+        </DialogContent>
+        <DialogActions>
+            <MudButton Variant="Variant.Text" OnClick="Cancel">Abbrechen</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" ButtonType="ButtonType.Submit">
+                @(IsEdit ? "Speichern" : "Anlegen")
+            </MudButton>
+        </DialogActions>
+    </MudDialog>
 </EditForm>
 
 @code {

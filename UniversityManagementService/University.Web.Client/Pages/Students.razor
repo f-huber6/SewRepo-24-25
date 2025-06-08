@@ -62,15 +62,15 @@
     _loading = false;
   }
 
-  // — Create / Edit Dialog öffnen
   async Task OpenCreateDialog()
   {
     var options = new DialogOptions
     {
       CloseButton = true,
-      MaxWidth = MaxWidth.Medium, 
+      MaxWidth = MaxWidth.Medium,
       FullWidth = true
     };
+    
     var dialog = await DialogService.ShowAsync<StudentEditDialog>("Neuen Studenten anlegen", options);
     var result = await dialog.Result;
     if (result is { Canceled: false })
@@ -83,7 +83,7 @@
     var options = new DialogOptions
     {
       CloseButton = true,
-      MaxWidth = MaxWidth.Medium, // oder Large
+      MaxWidth = MaxWidth.Medium,
       FullWidth = true
     };
     var dialog = await DialogService.ShowAsync<StudentEditDialog>("Student bearbeiten", parameters, options);
