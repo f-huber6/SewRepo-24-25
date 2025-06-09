@@ -8,6 +8,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "University.Shared", "Univer
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "University.Web.Client", "University.Web.Client\University.Web.Client.csproj", "{FBD54F0C-DB07-419C-8597-D31B10FAA0C5}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "University.TestsService.API", "University.TestsService.API\University.TestsService.API.csproj", "{85B7FCF9-3A53-438A-8B79-5122725F48FE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "University.LearnMaterial.API", "University.LearnMaterial.API\University.LearnMaterial.API.csproj", "{C492467E-4A57-4404-A7A8-79BF8C4541A3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,5 +34,13 @@ Global
 		{FBD54F0C-DB07-419C-8597-D31B10FAA0C5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FBD54F0C-DB07-419C-8597-D31B10FAA0C5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FBD54F0C-DB07-419C-8597-D31B10FAA0C5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{85B7FCF9-3A53-438A-8B79-5122725F48FE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{85B7FCF9-3A53-438A-8B79-5122725F48FE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{85B7FCF9-3A53-438A-8B79-5122725F48FE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{85B7FCF9-3A53-438A-8B79-5122725F48FE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C492467E-4A57-4404-A7A8-79BF8C4541A3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C492467E-4A57-4404-A7A8-79BF8C4541A3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C492467E-4A57-4404-A7A8-79BF8C4541A3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C492467E-4A57-4404-A7A8-79BF8C4541A3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

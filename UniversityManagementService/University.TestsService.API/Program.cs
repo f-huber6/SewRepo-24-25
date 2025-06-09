@@ -1,25 +1,27 @@
 using System.Reflection;
+using BlazorApp1.Data;
+using BlazorApp1.Mapping;
 using Microsoft.EntityFrameworkCore;
-using University.StudentService.API.Data;
-using University.StudentService.API.Mapping;
+//using University.InstructorService.API.Data;
+//using University.InstructorService.API.Mapping;
 
 var assembly = Assembly.GetExecutingAssembly();
 var builder = WebApplication.CreateBuilder(args);
 var conf = builder.Configuration;
 
-builder.Services.AddDbContext<StudentContext>(options =>
+builder.Services.AddDbContext<TestsContext>(options =>
 {
-    options.UseSqlite(conf.GetConnectionString("StudentConnection"), sqliteOptions =>
+    options.UseSqlite(conf.GetConnectionString("TestsConnection"), sqliteOptions =>
     {
         sqliteOptions.MigrationsAssembly(assembly.FullName);
     });
 });
 
-builder.Services.AddAutoMapper(typeof(AutoMapperProfile));
+//builder.Services.AddAutoMapper(typeof(AutoMapperProfile));
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowBlazorlientStudent", policyBuilder =>
+    options.AddPolicy("AllowBlazorClientTests", policyBuilder =>
     {
         policyBuilder
             .WithOrigins("http://localhost:5134")
@@ -33,13 +35,12 @@ builder.Services.AddControllers();
 
 var app = builder.Build();
 
-app.MapControllers();
-app.UseCors("AllowBlazorClientStudent");
-
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
     app.UseHsts();
 }
 
+app.UseCors("AllowBlazorClientTests");
+app.MapControllers();
 app.Run();
