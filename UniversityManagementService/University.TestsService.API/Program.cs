@@ -2,8 +2,7 @@ using System.Reflection;
 using BlazorApp1.Data;
 using BlazorApp1.Mapping;
 using Microsoft.EntityFrameworkCore;
-//using University.InstructorService.API.Data;
-//using University.InstructorService.API.Mapping;
+using Microsoft.OpenApi.Models;
 
 var assembly = Assembly.GetExecutingAssembly();
 var builder = WebApplication.CreateBuilder(args);
@@ -17,7 +16,7 @@ builder.Services.AddDbContext<TestsContext>(options =>
     });
 });
 
-//builder.Services.AddAutoMapper(typeof(AutoMapperProfile));
+builder.Services.AddAutoMapper(typeof(AutoMapperProfile));
 
 builder.Services.AddCors(options =>
 {
@@ -32,8 +31,27 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Test API",
+        Version = "v1",
+        Description = "API zum Verwalten von Tests und Studenten"
+    });
+});
 
 var app = builder.Build();
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger(); // Generiert JSON-Endpunkt
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Test API v1");
+        options.RoutePrefix = "swagger"; // Swagger erreichbar unter /swagger
+    });
+}
 
 if (!app.Environment.IsDevelopment())
 {
