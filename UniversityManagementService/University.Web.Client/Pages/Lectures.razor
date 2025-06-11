@@ -1,0 +1,87 @@
+﻿@page "/lectures"
+@using MudBlazor
+@using University.Client.Services
+@using University.InstructorService.API.Dto
+@using University.Shared.DtoCourse
+@using University.Shared.DtoLecture
+@using University.Web.Client.Services
+@inject LectureHttpService LectureService
+@inject CourseHttpService  CourseService
+@inject IDialogService      DialogService
+@inject ISnackbar           Snackbar
+
+<MudPaper Class="pa-4">
+  <MudStack Row AlignItems="AlignItems.Center" Justify="Justify.SpaceAround" Class="mb-4">
+    <MudText Typo="Typo.h5">Vorlesungsplan</MudText>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+               OnClick="OpenCreateDialog">Neue Vorlesung</MudButton>
+  </MudStack>
+
+  <MudTable Items="_lectures" Hover Dense Bordered Loading="_loading">
+    <HeaderContent>
+      <MudTh>Kurs</MudTh>
+      <MudTh>Raum</MudTh>
+      <MudTh>Startzeit</MudTh>
+      <MudTh>Endzeit</MudTh>
+      <MudTh Align="Center">Aktionen</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+      <MudTd>@_courses.First(c=>c.Id==context.CourseId).Title</MudTd>
+      <MudTd>@context.RoomNumber</MudTd>
+      <MudTd>@context.StartTime.ToString("g")</MudTd>
+      <MudTd>@context.EndTime.ToString("g")</MudTd>
+      <MudTd Align="Center">
+        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"
+                       OnClick="() => OpenEditDialog(context)" />
+        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                       OnClick="() => ConfirmDelete(context.Id)" />
+      </MudTd>
+    </RowTemplate>
+    <PagerContent>
+      <MudTablePager PageSizeOptions="new int[]{5,10,20}" />
+    </PagerContent>
+  </MudTable>
+</MudPaper>
+
+@code {
+  List<LectureDto> _lectures = new();
+  List<CourseDto>  _courses  = new();
+  bool             _loading;
+
+  protected override async Task OnInitializedAsync()
+  {
+    _loading = true;
+    _courses  = await CourseService.GetAllAsync();
+    _lectures= await LectureService.GetAllAsync();
+    _loading = false;
+  }
+
+  async Task OpenCreateDialog()
+  {
+    var options = new DialogOptions { CloseButton=true, MaxWidth=MaxWidth.Small, FullWidth=true };
+    var dialog  = await DialogService.ShowAsync<LectureEditDialog>("Neue Vorlesung anlegen", options);
+    var res     = await dialog.Result;
+    if (!res.Canceled) await Reload();
+  }
+
+  async Task OpenEditDialog(LectureDto dto)
+  {
+    var parameters = new DialogParameters { ["Existing"] = dto };
+    var options    = new DialogOptions { CloseButton=true, MaxWidth=MaxWidth.Small, FullWidth=true };
+    var dialog     = await DialogService.ShowAsync<LectureEditDialog>("Vorlesung bearbeiten", parameters, options);
+    var res        = await dialog.Result;
+    if (!res.Canceled) await Reload();
+  }
+
+  async Task ConfirmDelete(string id)
+  {
+    if (await DialogService.ShowMessageBox("Löschen?","Vorlesung wirklich löschen?","Ja","Nein")==true)
+    {
+      await LectureService.DeleteAsync(id);
+      Snackbar.Add("Vorlesung gelöscht", Severity.Success);
+      await Reload();
+    }
+  }
+
+  Task Reload() => OnInitializedAsync();
+}

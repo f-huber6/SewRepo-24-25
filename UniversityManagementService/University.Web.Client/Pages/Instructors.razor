@@ -1,0 +1,102 @@
+﻿@page "/instructors"
+@using MudBlazor
+@using University.Client.Services
+@using University.InstructorService.API.Dto
+@inject InstructorHttpService InstructorService
+@inject IDialogService       DialogService
+@inject ISnackbar            Snackbar
+
+<MudPaper Class="pa-4">
+
+  <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+    <MudText Typo="Typo.h5">Dozentenverwaltung</MudText>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.PersonAdd"
+               OnClick="OpenCreateDialog">
+      Neuer Dozent
+    </MudButton>
+  </MudStack>
+
+  <MudTable Items="_instructors" Hover="true" Elevation="0"
+            Loading="_loading" Dense="true" Bordered="true">
+    <HeaderContent>
+      <MudTh>Vorname</MudTh>
+      <MudTh>Nachname</MudTh>
+      <MudTh Align="Align.Center">Aktionen</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+      <MudTd>@context.FirstName</MudTd>
+      <MudTd>@context.LastName</MudTd>
+      <MudTd Align="Align.Center">
+        <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                       Color="Color.Primary"
+                       OnClick="() => OpenEditDialog(context)" />
+        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                       Color="Color.Error"
+                       OnClick="() => ConfirmDelete(context.Id)" />
+      </MudTd>
+    </RowTemplate>
+    <PagerContent>
+      <MudTablePager PageSizeOptions="new int[]{5,10,20}" />
+    </PagerContent>
+  </MudTable>
+</MudPaper>
+
+@code {
+  private List<InstructorDto> _instructors = new();
+  private bool                _loading;
+
+  protected override async Task OnInitializedAsync()
+  {
+    await LoadAsync();
+  }
+
+  private async Task LoadAsync()
+  {
+    _loading = true;
+    _instructors = await InstructorService.GetAllAsync();
+    _loading = false;
+  }
+
+  async Task OpenCreateDialog()
+  {
+    var options = new DialogOptions
+    {
+      CloseButton = true,
+      MaxWidth    = MaxWidth.Small,
+      FullWidth   = true
+    };
+    var dialog  = await DialogService.ShowAsync<InstructorEditDialog>("Neuen Dozenten anlegen", options);
+    var result  = await dialog.Result;
+    if (!result.Canceled)
+      await LoadAsync();
+  }
+
+  async Task OpenEditDialog(InstructorDto dto)
+  {
+    var parameters = new DialogParameters { ["Existing"] = dto };
+    var options    = new DialogOptions
+    {
+      CloseButton = true,
+      MaxWidth    = MaxWidth.Small,
+      FullWidth   = true
+    };
+    var dialog     = await DialogService.ShowAsync<InstructorEditDialog>("Dozent bearbeiten", parameters, options);
+    var result     = await dialog.Result;
+    if (!result.Canceled)
+      await LoadAsync();
+  }
+
+  async Task ConfirmDelete(string id)
+  {
+    bool? ok = await DialogService.ShowMessageBox(
+      "Löschen?", "Wirklich löschen?",
+      yesText: "Ja", noText: "Nein");
+    if (ok == true)
+    {
+      await InstructorService.DeleteAsync(id);
+      Snackbar.Add("Dozent gelöscht", Severity.Success);
+      await LoadAsync();
+    }
+  }
+}

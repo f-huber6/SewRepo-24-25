@@ -1,0 +1,86 @@
+﻿@page "/courses"
+@using MudBlazor
+@using University.Client.Services
+@using University.InstructorService.API.Dto
+@using University.Shared.DtoCourse
+@using University.Web.Client.Services
+@inject CourseHttpService     CourseService
+@inject InstructorHttpService InstructorService
+@inject IDialogService        DialogService
+@inject ISnackbar             Snackbar
+
+<MudPaper Class="pa-4">
+  <MudStack Row AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+    <MudText Typo="Typo.h5">Kursverwaltung</MudText>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+               OnClick="OpenCreateDialog">Neuen Kurs</MudButton>
+  </MudStack>
+
+  <MudTable Items="_courses" Hover Dense Bordered Loading="_loading">
+    <HeaderContent>
+      <MudTh>Titel</MudTh>
+      <MudTh>Dozent</MudTh>
+      <MudTh Align="Center">Aktionen</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+      <MudTd>@context.Title</MudTd>
+      <MudTd>
+        @(_instructors.FirstOrDefault(i => i.Id == context.InstructorId)?.FirstName
+          + " " +
+          _instructors.FirstOrDefault(i => i.Id == context.InstructorId)?.LastName)
+      </MudTd>
+      <MudTd Align="Center">
+        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"
+                       OnClick="() => OpenEditDialog(context)" />
+        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                       OnClick="() => ConfirmDelete(context.Id)" />
+      </MudTd>
+    </RowTemplate>
+    <PagerContent>
+      <MudTablePager PageSizeOptions="new int[]{5,10,20}" />
+    </PagerContent>
+  </MudTable>
+</MudPaper>
+
+@code {
+  List<CourseDto>     _courses     = new();
+  List<InstructorDto> _instructors = new();
+  bool                _loading;
+
+  protected override async Task OnInitializedAsync()
+  {
+    _loading = true;
+    _instructors = await InstructorService.GetAllAsync();
+    _courses     = await CourseService.GetAllAsync();
+    _loading     = false;
+  }
+
+  async Task OpenCreateDialog()
+  {
+    var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+    var dialog  = await DialogService.ShowAsync<CourseEditDialog>("Neuen Kurs anlegen", options);
+    var res     = await dialog.Result;
+    if (!res.Canceled) await Reload();
+  }
+
+  async Task OpenEditDialog(CourseDto dto)
+  {
+    var parameters = new DialogParameters { ["Existing"] = dto };
+    var options    = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+    var dialog     = await DialogService.ShowAsync<CourseEditDialog>("Kurs bearbeiten", parameters, options);
+    var res        = await dialog.Result;
+    if (!res.Canceled) await Reload();
+  }
+
+  async Task ConfirmDelete(string id)
+  {
+    if (await DialogService.ShowMessageBox("Löschen?", "Kurs wirklich löschen?", "Ja", "Nein") == true)
+    {
+      await CourseService.DeleteAsync(id);
+      Snackbar.Add("Kurs gelöscht", Severity.Success);
+      await Reload();
+    }
+  }
+
+  Task Reload() => OnInitializedAsync();
+}

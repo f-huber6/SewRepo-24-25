@@ -1,0 +1,75 @@
+﻿@using MudBlazor
+@using University.Client.Services
+@using University.InstructorService.API.Dto
+@using University.Shared.DtoCourse
+@using University.Shared.DtoLecture
+@using University.Web.Client.Services
+@inject LectureHttpService LectureService
+@inject CourseHttpService  CourseService
+
+<EditForm Model="_model" OnValidSubmit="Submit">
+    <MudDialog>
+        <DialogContent>
+            <MudStack Spacing="2">
+                <MudSelect @bind-Value="_model.CourseId" Label="Kurs" Required="true">
+                    @foreach(var c in _courses)
+                    {
+                        <MudSelectItem Value="@c.Id">@c.Title</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudTextField @bind-Value="_model.RoomNumber" Label="Raum" Required="true" />
+                <MudDatePicker @bind-Date="_model.StartTime" Label="Startzeit" Required="true" PickerVariant="PickerVariant.Inline" />
+                <MudDatePicker @bind-Date="_model.EndTime"   Label="Endzeit"   Required="true" PickerVariant="PickerVariant.Inline" />
+            </MudStack>
+        </DialogContent>
+        <DialogActions>
+            <MudButton Variant="Variant.Text" OnClick="Cancel">Abbrechen</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" ButtonType="ButtonType.Submit">
+                @(IsEdit ? "Speichern" : "Anlegen")
+            </MudButton>
+        </DialogActions>
+    </MudDialog>
+</EditForm>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public LectureDto? Existing { get; set; }
+
+    List<CourseDto>       _courses = new();
+    LectureCreateDto      _model   = new();
+    bool                  IsEdit;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _courses = await CourseService.GetAllAsync();
+        if (Existing != null)
+        {
+            IsEdit = true;
+            _model  = new LectureCreateDto
+            {
+                CourseId   = Existing.CourseId!,
+                RoomNumber = Existing.RoomNumber,
+                StartTime  = Existing.StartTime,
+                EndTime    = Existing.EndTime
+            };
+        }
+    }
+
+    async Task Submit()
+    {
+        if (IsEdit && Existing != null)
+            await LectureService.UpdateAsync(Existing.Id,
+                new LectureUpdateDto {
+                    CourseId   = _model.CourseId,
+                    RoomNumber = _model.RoomNumber,
+                    StartTime  = _model.StartTime,
+                    EndTime    = _model.EndTime
+                });
+        else
+            await LectureService.CreateAsync(_model);
+
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    void Cancel() => MudDialog.Cancel();
+}
