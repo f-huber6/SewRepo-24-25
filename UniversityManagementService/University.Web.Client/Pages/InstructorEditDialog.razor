@@ -1,0 +1,67 @@
+﻿@using MudBlazor
+@using University.Client.Services
+@using University.InstructorService.API.Dto
+@inject InstructorHttpService InstructorService
+@inject IDialogService          DialogService
+
+<EditForm Model="_model" OnValidSubmit="Submit">
+    <MudDialog>
+        <DialogContent>
+            <MudStack Spacing="2">
+                <MudTextField @bind-Value="_model.FirstName"
+                              Label="Vorname" Required="true" />
+                <MudTextField @bind-Value="_model.LastName"
+                              Label="Nachname" Required="true" />
+            </MudStack>
+        </DialogContent>
+        <DialogActions>
+            <MudButton Variant="Variant.Text" OnClick="Cancel">Abbrechen</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" ButtonType="ButtonType.Submit">
+                @(IsEdit ? "Speichern" : "Anlegen")
+            </MudButton>
+        </DialogActions>
+    </MudDialog>
+</EditForm>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public InstructorDto?       Existing  { get; set; }
+
+    private InstructorCreateDto _model  = new();
+    private bool                IsEdit;
+
+    protected override void OnInitialized()
+    {
+        if (Existing != null)
+        {
+            IsEdit = true;
+            _model  = new InstructorCreateDto
+            {
+                FirstName = Existing.FirstName,
+                LastName  = Existing.LastName
+            };
+        }
+    }
+
+    async Task Submit()
+    {
+        if (IsEdit && Existing != null)
+        {
+            await InstructorService.UpdateAsync(
+                Existing.Id,
+                new InstructorUpdateDto
+                {
+                    FirstName = _model.FirstName,
+                    LastName  = _model.LastName
+                });
+        }
+        else
+        {
+            await InstructorService.CreateAsync(_model);
+        }
+
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    void Cancel() => MudDialog.Cancel();
+}

@@ -1,0 +1,65 @@
+﻿@using MudBlazor
+@using University.Client.Services
+@using University.InstructorService.API.Dto
+@using University.Shared.DtoCourse
+@using University.Web.Client.Services
+@inject CourseHttpService     CourseService
+@inject InstructorHttpService InstructorService
+
+<EditForm Model="_model" OnValidSubmit="Submit">
+    <MudDialog>
+        <DialogContent>
+            <MudStack Spacing="2">
+                <MudTextField @bind-Value="_model.Title" Label="Titel" Required="true" />
+                <MudSelect @bind-Value="_model.InstructorId" Label="Dozent" Required="true">
+                    @foreach (var inst in _instructors)
+                    {
+                        <MudSelectItem Value="@inst.Id">@inst.FirstName @inst.LastName</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudStack>
+        </DialogContent>
+        <DialogActions>
+            <MudButton Variant="Variant.Text" OnClick="Cancel">Abbrechen</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" ButtonType="ButtonType.Submit">
+                @(IsEdit ? "Speichern" : "Anlegen")
+            </MudButton>
+        </DialogActions>
+    </MudDialog>
+</EditForm>
+
+@code {
+    [CascadingParameter] IMudDialogInstance     MudDialog  { get; set; } = default!;
+    [Parameter]          public CourseDto?      Existing   { get; set; }
+
+    List<InstructorDto>  _instructors = new();
+    CourseCreateDto      _model       = new();
+    bool                 IsEdit;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _instructors = await InstructorService.GetAllAsync();
+        if (Existing != null)
+        {
+            IsEdit = true;
+            _model = new CourseCreateDto
+            {
+                Title        = Existing.Title,
+                InstructorId = Existing.InstructorId!
+            };
+        }
+    }
+
+    async Task Submit()
+    {
+        if (IsEdit && Existing != null)
+            await CourseService.UpdateAsync(Existing.Id,
+                new CourseUpdateDto { Title = _model.Title, InstructorId = _model.InstructorId });
+        else
+            await CourseService.CreateAsync(_model);
+
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    void Cancel() => MudDialog.Cancel();
+}
