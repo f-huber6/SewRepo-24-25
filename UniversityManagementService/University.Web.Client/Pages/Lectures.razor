@@ -5,13 +5,14 @@
 @using University.Shared.DtoCourse
 @using University.Shared.DtoLecture
 @using University.Web.Client.Services
-@inject LectureHttpService LectureService
-@inject CourseHttpService  CourseService
-@inject IDialogService      DialogService
-@inject ISnackbar           Snackbar
+@inject LectureHttpService   LectureService
+@inject CourseHttpService    CourseService
+@inject InstructorHttpService InstructorService
+@inject IDialogService        DialogService
+@inject ISnackbar             Snackbar
 
 <MudPaper Class="pa-4">
-  <MudStack Row AlignItems="AlignItems.Center" Justify="Justify.SpaceAround" Class="mb-4">
+  <MudStack Row AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
     <MudText Typo="Typo.h5">Vorlesungsplan</MudText>
     <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
                OnClick="OpenCreateDialog">Neue Vorlesung</MudButton>
@@ -20,16 +21,24 @@
   <MudTable Items="_lectures" Hover Dense Bordered Loading="_loading">
     <HeaderContent>
       <MudTh>Kurs</MudTh>
+      <MudTh>Dozent</MudTh>
       <MudTh>Raum</MudTh>
-      <MudTh>Startzeit</MudTh>
-      <MudTh>Endzeit</MudTh>
+      <MudTh SortBy="@((LectureDto l) => l.StartTime)">Startzeit</MudTh>
+      <MudTh SortBy="@((LectureDto l) => l.EndTime)">Endzeit</MudTh>
       <MudTh Align="Center">Aktionen</MudTh>
     </HeaderContent>
     <RowTemplate>
-      <MudTd>@_courses.First(c=>c.Id==context.CourseId).Title</MudTd>
+      <MudTd>@_courses.First(c => c.Id == context.CourseId).Title</MudTd>
+      <MudTd>
+        @{
+          var course = _courses.First(c => c.Id == context.CourseId);
+          var instr  = _instructors.FirstOrDefault(i => i.Id == course.InstructorId);
+        }
+        @($"{instr?.FirstName} {instr?.LastName}")
+      </MudTd>
       <MudTd>@context.RoomNumber</MudTd>
-      <MudTd>@context.StartTime.ToString("g")</MudTd>
-      <MudTd>@context.EndTime.ToString("g")</MudTd>
+      <MudTd>@context.StartTime.ToString("dd.MM.yyyy HH:mm")</MudTd>
+      <MudTd>@context.EndTime.ToString("dd.MM.yyyy HH:mm")</MudTd>
       <MudTd Align="Center">
         <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"
                        OnClick="() => OpenEditDialog(context)" />
@@ -44,16 +53,18 @@
 </MudPaper>
 
 @code {
-  List<LectureDto> _lectures = new();
-  List<CourseDto>  _courses  = new();
-  bool             _loading;
+  private List<LectureDto>   _lectures    = new();
+  private List<CourseDto>    _courses     = new();
+  private List<InstructorDto> _instructors = new();
+  private bool               _loading;
 
   protected override async Task OnInitializedAsync()
   {
-    _loading = true;
-    _courses  = await CourseService.GetAllAsync();
-    _lectures= await LectureService.GetAllAsync();
-    _loading = false;
+    _loading     = true;
+    _courses     = await CourseService.GetAllAsync();
+    _instructors = await InstructorService.GetAllAsync();
+    _lectures    = await LectureService.GetAllAsync();
+    _loading     = false;
   }
 
   async Task OpenCreateDialog()

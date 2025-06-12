@@ -8,6 +8,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "University.Shared", "Univer
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "University.Web.Client", "University.Web.Client\University.Web.Client.csproj", "{FBD54F0C-DB07-419C-8597-D31B10FAA0C5}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "University.EnrollmentService.API", "University.EnrollmentService.API\University.EnrollmentService.API.csproj", "{83D0167F-2241-4E77-B16A-C7FFFD4A5105}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,5 +32,9 @@ Global
 		{FBD54F0C-DB07-419C-8597-D31B10FAA0C5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FBD54F0C-DB07-419C-8597-D31B10FAA0C5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FBD54F0C-DB07-419C-8597-D31B10FAA0C5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{83D0167F-2241-4E77-B16A-C7FFFD4A5105}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{83D0167F-2241-4E77-B16A-C7FFFD4A5105}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{83D0167F-2241-4E77-B16A-C7FFFD4A5105}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{83D0167F-2241-4E77-B16A-C7FFFD4A5105}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

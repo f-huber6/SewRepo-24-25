@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using MudBlazor.Services;
 using University.Client.Services;
+using University.Shared.Client;
 using University.Web.Client;
 using University.Web.Client.Services;
 
@@ -22,6 +23,15 @@ builder.Services.AddHttpClient<CourseHttpService>(c =>
 
 builder.Services.AddHttpClient<LectureHttpService>(c => 
     c.BaseAddress = new Uri("http://localhost:5198"));
+
+builder.Services.AddHttpClient<StudentClient>(c => 
+    c.BaseAddress = new Uri("http://localhost:5180"));
+
+builder.Services.AddHttpClient<LectureClient>(c => 
+    c.BaseAddress = new Uri("http://localhost:5280"));
+
+builder.Services.AddHttpClient<EnrollmentHttpService>(c =>
+    c.BaseAddress = new Uri("http://localhost:5280/"));
 
 builder.Services.AddMudServices();
 

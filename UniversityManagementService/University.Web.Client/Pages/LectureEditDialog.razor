@@ -12,16 +12,44 @@
         <DialogContent>
             <MudStack Spacing="2">
                 <MudSelect @bind-Value="_model.CourseId" Label="Kurs" Required="true">
-                    @foreach(var c in _courses)
+                    @foreach (var c in _courses)
                     {
                         <MudSelectItem Value="@c.Id">@c.Title</MudSelectItem>
                     }
                 </MudSelect>
+
                 <MudTextField @bind-Value="_model.RoomNumber" Label="Raum" Required="true" />
-                <MudDatePicker @bind-Date="_model.StartTime" Label="Startzeit" Required="true" PickerVariant="PickerVariant.Inline" />
-                <MudDatePicker @bind-Date="_model.EndTime"   Label="Endzeit"   Required="true" PickerVariant="PickerVariant.Inline" />
+
+                <MudGrid>
+                    <MudItem xs="6">
+                        <MudDatePicker T="DateTime?"
+                                         @bind-Value="_startDate"
+                                         Label="Startdatum" Required="true"
+                                         PickerVariant="PickerVariant.Inline" />
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudTimePicker T="TimeSpan"
+                                         @bind-Value="_startTime"
+                                         Label="Startzeit" Required="true" />
+                    </MudItem>
+                </MudGrid>
+
+                <MudGrid>
+                    <MudItem xs="6">
+                        <MudDatePicker T="DateTime?"
+                                         @bind-Value="_endDate"
+                                         Label="Enddatum" Required="true"
+                                         PickerVariant="PickerVariant.Inline" />
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudTimePicker T="TimeSpan"
+                                         @bind-Value="_endTime"
+                                         Label="Endzeit" Required="true" />
+                    </MudItem>
+                </MudGrid>
             </MudStack>
         </DialogContent>
+
         <DialogActions>
             <MudButton Variant="Variant.Text" OnClick="Cancel">Abbrechen</MudButton>
             <MudButton Variant="Variant.Filled" Color="Color.Primary" ButtonType="ButtonType.Submit">
@@ -33,20 +61,30 @@
 
 @code {
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
-    [Parameter] public LectureDto? Existing { get; set; }
+    [Parameter]          public LectureDto? Existing  { get; set; }
 
-    List<CourseDto>       _courses = new();
-    LectureCreateDto      _model   = new();
-    bool                  IsEdit;
+    List<CourseDto>    _courses   = new();
+    LectureCreateDto   _model     = new();
+    bool               IsEdit;
+
+    private DateTime?  _startDate = DateTime.Today;
+    private TimeSpan  _startTime = TimeSpan.Zero;
+    private DateTime?  _endDate   = DateTime.Today;
+    private TimeSpan  _endTime   = TimeSpan.Zero;
 
     protected override async Task OnInitializedAsync()
     {
         _courses = await CourseService.GetAllAsync();
+
         if (Existing != null)
         {
-            IsEdit = true;
-            _model  = new LectureCreateDto
-            {
+            IsEdit     = true;
+            _startDate = Existing.StartTime.Date;
+            _startTime = Existing.StartTime.TimeOfDay;
+            _endDate   = Existing.EndTime.Date;
+            _endTime   = Existing.EndTime.TimeOfDay;
+
+            _model = new LectureCreateDto {
                 CourseId   = Existing.CourseId!,
                 RoomNumber = Existing.RoomNumber,
                 StartTime  = Existing.StartTime,
@@ -57,16 +95,29 @@
 
     async Task Submit()
     {
+        var start = _startDate?.Date + _startTime;
+        var end   = _endDate?.Date   + _endTime;
+
         if (IsEdit && Existing != null)
-            await LectureService.UpdateAsync(Existing.Id,
+        {
+            await LectureService.UpdateAsync(
+                Existing.Id,
                 new LectureUpdateDto {
                     CourseId   = _model.CourseId,
                     RoomNumber = _model.RoomNumber,
-                    StartTime  = _model.StartTime,
-                    EndTime    = _model.EndTime
+                    StartTime  = start,
+                    EndTime    = end
                 });
+        }
         else
-            await LectureService.CreateAsync(_model);
+        {
+            await LectureService.CreateAsync(new LectureCreateDto {
+                CourseId   = _model.CourseId,
+                RoomNumber = _model.RoomNumber,
+                StartTime  = start,
+                EndTime    = end
+            });
+        }
 
         MudDialog.Close(DialogResult.Ok(true));
     }
