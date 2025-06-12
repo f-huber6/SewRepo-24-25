@@ -4,19 +4,24 @@
         <TargetFramework>net9.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
+        <RootNamespace>University.LearnMaterial</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>
       <_ContentIncludedByDefault Remove="Components\App.razor" />
       <_ContentIncludedByDefault Remove="Components\Layout\MainLayout.razor" />
+      <_ContentIncludedByDefault Remove="Components\Layout\NavMenu.razor" />
+      <_ContentIncludedByDefault Remove="Components\Pages\Counter.razor" />
       <_ContentIncludedByDefault Remove="Components\Pages\Error.razor" />
       <_ContentIncludedByDefault Remove="Components\Pages\Home.razor" />
+      <_ContentIncludedByDefault Remove="Components\Pages\Weather.razor" />
       <_ContentIncludedByDefault Remove="Components\Routes.razor" />
       <_ContentIncludedByDefault Remove="Components\_Imports.razor" />
     </ItemGroup>
 
     <ItemGroup>
       <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.1" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.5" />
       <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.5">
         <PrivateAssets>all</PrivateAssets>
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -30,7 +35,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\University.Shared\University.Shared.csproj" />
+      <Folder Include="Mapping\" />
     </ItemGroup>
 
 </Project>
