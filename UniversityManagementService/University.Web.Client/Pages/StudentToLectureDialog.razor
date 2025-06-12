@@ -1,0 +1,90 @@
+﻿@using MudBlazor
+@using University.Client.Services
+@using University.InstructorService.API.Dto
+@using University.Shared.Client
+@using University.Shared.DtoCourse
+@using University.Shared.DtoLecture
+@using University.StudentService.API.Dto
+@using University.Web.Client.Services
+@inject StudentClient         StudentService
+@inject LectureHttpService    LectureService
+@inject CourseHttpService     CourseService
+@inject EnrollmentHttpService EnrollmentService
+@inject InstructorHttpService InstructorService
+@inject IDialogService        DialogService
+
+<EditForm Model="_model" OnValidSubmit="Submit">
+    <MudDialog>
+        <DialogContent>
+            <MudStack Spacing="2">
+                <MudSelect T="string" @bind-Value="_model.StudentId" Label="Student" Required="true">
+                    @foreach (var s in _students)
+                    {
+                        <MudSelectItem Value="@s.Id">@s.FirstName @s.LastName</MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudSelect T="string" @bind-Value="_model.LectureId" Label="Vorlesung" Required="true">
+                    @foreach (var l in _lectures)
+                    {
+                        var course = _courses.First(c => c.Id == l.CourseId);
+                        <MudSelectItem Value="@l.Id">@($"{course.Title} – {l.StartTime:dd.MM.yyyy HH:mm}")</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudStack>
+        </DialogContent>
+        <DialogActions>
+            <MudButton Variant="Variant.Text" OnClick="Cancel">Abbrechen</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" ButtonType="ButtonType.Submit">Zuweisen</MudButton>
+        </DialogActions>
+    </MudDialog>
+</EditForm>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    
+    private StudentToLectureModel _model = new();
+    private List<StudentDto>    _students    = new();
+    private List<LectureDto>    _lectures    = new();
+    private List<CourseDto>     _courses     = new();
+    private List<InstructorDto> _instructors = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _students    = await StudentService.GetAllAsync();
+        _lectures    = await LectureService.GetAllAsync();
+        _courses     = await CourseService.GetAllAsync();
+        _instructors = await InstructorService.GetAllAsync();
+    }
+
+    async Task Submit()
+    {
+        var sid = _model.StudentId;
+        var lid = _model.LectureId;
+        
+        var resp = await EnrollmentService.EnrollStudentAsync(sid, lid);
+        if (!resp.IsSuccessStatusCode)
+        {
+            //Snackbar.Add("Fehler: " + await resp.Content.ReadAsStringAsync(), Severity.Error);
+            return;
+        }
+
+        var student    = _students.First(s => s.Id == sid);
+        var lecture    = _lectures.First(l => l.Id == lid);
+        var course     = _courses.First(c => c.Id == lecture.CourseId);
+        var instructor = _instructors.First(i => i.Id == course.InstructorId);
+
+        var resultData = (
+            StudentId      : sid,
+            StudentName    : $"{student.FirstName} {student.LastName}",
+            LectureId      : lid,
+            LectureTitle   : $"{lecture.RoomNumber} – {lecture.StartTime:dd.MM.yyyy HH:mm}",
+            CourseTitle    : course.Title,
+            InstructorName : $"{instructor.FirstName} {instructor.LastName}"
+        );
+
+        MudDialog.Close(DialogResult.Ok(resultData));
+    }
+
+    void Cancel() => MudDialog.Cancel();
+}

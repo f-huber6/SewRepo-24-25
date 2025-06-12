@@ -1,0 +1,175 @@
+﻿@page "/studentsToLectures"
+@using University.Client.Services
+@using University.InstructorService.API.Dto
+@using University.Shared.Client
+@using University.Shared.DtoCourse
+@using University.Shared.DtoEnrollment
+@using University.Shared.DtoLecture
+@using University.StudentService.API.Dto
+@using University.Web.Client.Services
+@inject StudentClient         StudentService
+@inject LectureHttpService    LectureService
+@inject CourseHttpService     CourseService
+@inject InstructorHttpService InstructorService
+@inject EnrollmentHttpService EnrollmentService
+@inject IDialogService        DialogService
+@inject ISnackbar             Snackbar
+
+<MudPaper Class="pa-4">
+  <MudStack Row AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+    <MudText Typo="Typo.h5">Student → Vorlesung</MudText>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Link"
+               OnClick="OpenAssignDialog">
+      Neue Zuweisung
+    </MudButton>
+  </MudStack>
+
+  @if (_assigned.Any())
+  {
+    <MudTable Items="_assigned" Hover Dense Bordered>
+      <HeaderContent>
+        <MudTh>Student</MudTh>
+        <MudTh>Vorlesung</MudTh>
+        <MudTh>Kurs</MudTh>
+        <MudTh>Dozent</MudTh>
+        <MudTh Align="Center">Aktionen</MudTh>
+      </HeaderContent>
+      <RowTemplate>
+        <MudTd>
+          @{
+            var stu = _students.FirstOrDefault(s => s.Id == context.StudentId);
+          }
+          @stu?.FirstName @stu?.LastName
+        </MudTd>
+        <MudTd>@context.LectureTitle</MudTd>
+        <MudTd>@context.CourseTitle</MudTd>
+        <MudTd>@context.InstructorName</MudTd>
+        <MudTd Align="Center">
+          <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                         Color="Color.Error"
+                         OnClick="() => RemoveAssignment(context)" />
+        </MudTd>
+      </RowTemplate>
+    </MudTable>
+  }
+  else
+  {
+    <p><em>Noch keine Zuweisungen.</em></p>
+  }
+</MudPaper>
+
+@code {
+  private List<(
+    string StudentId,
+    string LectureId,
+    string StudentName,
+    string LectureTitle,
+    string CourseTitle,
+    string InstructorName
+    )> _assigned = new();
+
+  private List<StudentDto> _students    = new();
+  private List<LectureDto> _lectures    = new();
+  private List<CourseDto>  _courses     = new();
+  private List<InstructorDto> _instructors = new();
+  private List<EnrollmentDto> _rawAssignments = new();
+
+  protected override async Task OnInitializedAsync()
+  {
+    _students    = await StudentService.GetAllAsync();
+    _lectures    = await LectureService.GetAllAsync();
+    _courses     = await CourseService.GetAllAsync();
+    _instructors = await InstructorService.GetAllAsync();
+
+    _rawAssignments = await EnrollmentService.GetAllAssignmentsAsync();
+    MapRawToView();
+  }
+  
+  async Task LoadAssignments(string studentId)
+  {
+    _assigned = (await EnrollmentService.GetLecturesForStudentAsync(studentId))
+      .Select(ld =>
+      {
+        var stu  = _students.First(s => s.Id == studentId);
+        var course  = _courses.First(c => c.Id == ld.CourseId);
+        var instr   = _instructors.First(i => i.Id == course.InstructorId);
+        return (
+          studentId,
+          $"{stu.FirstName} {stu.LastName}",
+          ld.Id,
+          $"{ld.RoomNumber} – {ld.StartTime:dd.MM.yyyy HH:mm}",
+          course.Title,
+          $"{instr.FirstName} {instr.LastName}"
+        );
+      })
+      .ToList()!;
+  }
+
+  void MapRawToView()
+  {
+    _assigned = _rawAssignments.Select(e =>
+    {
+      var stu  = _students.First(s => s.Id == e.StudentId);
+      var lec  = _lectures.First(l => l.Id == e.LectureId);
+      var course = _courses.First(c => c.Id == lec.CourseId);
+      var instr  = _instructors.First(i => i.Id == course.InstructorId);
+      return (
+        e.StudentId,
+        $"{stu.FirstName} {stu.LastName}",
+        e.LectureId,
+        $"{lec.RoomNumber} – {lec.StartTime:dd.MM.yyyy HH:mm}",
+        course.Title,
+        $"{instr.FirstName} {instr.LastName}"
+      );
+    }).ToList()!;
+  }
+  
+  async Task OpenAssignDialog()
+  {
+    var options = new DialogOptions { CloseButton=true, MaxWidth=MaxWidth.Small, FullWidth=true };
+    var dialog  = DialogService.Show<StudentToLectureDialog>("Student zu Vorlesung", options);
+    var result  = await dialog.Result;
+    if (!result.Canceled)
+    {
+      var (sid, sname, lid, ltitle, ctitle, iname)
+        = ((string,string,string,string,string,string))result.Data!;
+
+      // 1) Persistieren
+      var resp = await EnrollmentService.EnrollStudentAsync(sid, lid);
+      if (!resp.IsSuccessStatusCode)
+      {
+        var err = await resp.Content.ReadAsStringAsync();
+        Snackbar.Add($"Fehler: {resp.StatusCode} – {err}", Severity.Error);
+        return;
+      }
+
+      // 2) nur LoadAssignments, kein manuelles Add
+      await LoadAssignments(sid);
+
+      Snackbar.Add("Zuweisung gespeichert", Severity.Success);
+    }
+  }
+  
+  async Task RemoveAssignment((
+    string StudentId,
+    string LectureId,
+    string StudentName,
+    string LectureTitle,
+    string CourseTitle,
+    string InstructorName
+    ) a)
+  {
+    // 1) API-Call zum Löschen
+    var resp = await EnrollmentService.RemoveAssignmentAsync(a.StudentId, a.LectureId);
+    if (!resp.IsSuccessStatusCode)
+    {
+      var err = await resp.Content.ReadAsStringAsync();
+      Snackbar.Add($"Löschen fehlgeschlagen: {resp.StatusCode} – {err}", Severity.Error);
+      return;
+    }
+
+    _assigned.Remove(a);
+    Snackbar.Add("Zuweisung gelöscht", Severity.Success);
+    StateHasChanged();
+  }
+}

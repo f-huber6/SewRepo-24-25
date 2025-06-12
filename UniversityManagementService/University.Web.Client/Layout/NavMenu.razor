@@ -7,15 +7,10 @@
     </div>
 </div>
 
-<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
+<div class="@NavMenuCssClass nav-scrollable">
     <nav class="nav flex-column">
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="students">
+            <NavLink class="nav-link" href="">
                 <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Students
             </NavLink>
         </div>
@@ -32,6 +27,11 @@
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="lectures">
                 <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Lectures
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="studentsToLectures">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Course Assignments
             </NavLink>
         </div>
     </nav>
